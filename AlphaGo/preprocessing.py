@@ -11,6 +11,9 @@ def _convert_sgf_move(move):
         tuple: player and a list of position coordinates.
     """
     for player, [position] in move.items():
+        #pass move
+        if position == '' or position == 'tt':
+            return player, [-1, -1]
         #ord(a)==97, ord(coord)-97 is the index starting from 0
         return player, [ord(coord)-97 for coord in position]
 
@@ -35,5 +38,5 @@ def _sgf_move_generator(game):
         move = node.properties
         yield _convert_sgf_move(move)
 
-def 
+
 
