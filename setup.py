@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-setup(name='AlphaGo',
+setup(name='AlphaGoZero',
       version='0.1',
-      py_modules=['AlphaGo']
+      py_modules=['AlphaGoZero']
       )
