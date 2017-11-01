@@ -6,12 +6,11 @@ from Network.util import average_gradients
 
 config = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_integer(
-    "num_blocks", 19, "number of residual blocks in the model")
-tf.app.flags.DEFINE_float(
-    "batch_decay", 0.9, "decay factor of batch normalization")
-tf.app.flags.DEFINE_float(
-    "learning_rate", 0.01, "learning rate of momentum optimizer")
+tf.app.flags.DEFINE_integer("num_blocks", 19, "number of residual blocks in the model")
+tf.app.flags.DEFINE_float("batch_decay", 0.9, "decay factor of batch normalization")
+tf.app.flags.DEFINE_float("learning_rate", 0.01, "lr of momentum optimizer")
+tf.app.flags.DEFINE_float("momentum", 0.9, "momentum of momentum optimizer")
+tf.app.flags.DEFINE_float("l2", 1e-4, "L2 regularization factor")
 
 
 class Network(object):
@@ -24,7 +23,8 @@ class Network(object):
         self.sess = tf.Session(config=sess_config)
         self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
-        self.opt = tf.train.MomentumOptimizer(config.learning_rate)
+        self.opt = tf.train.MomentumOptimizer(
+            config.learning_rate, momentum=config.momentum)
 
         loss_list = []
         grad_list = []

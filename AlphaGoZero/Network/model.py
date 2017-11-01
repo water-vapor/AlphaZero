@@ -32,16 +32,20 @@ class Model(object):
     def _build_forward(self):
         config = self.config
         _activation = tf.nn.relu
+        regularizer = tf.contrib.layers.l2_regularizer(scale=self.config.l2)
 
         inputs = tf.transpose(self.x, [0, 2, 3, 1])
-        W0 = tf.get_variable("W0", [3, 3, 19 * 19 * 17, 256])
+        W0 = tf.get_variable(
+            "W0", [3, 3, 19 * 19 * 17, 256], regularizer=regularizer)
         R = tf.nn.conv2d(inputs, W0, strides=[1, 1, 1, 1], padding='SAME')
         R = _activation(batch_norm(R, config, self.is_train))
 
         for i in range(config.num_blocks):
             with tf.variable_scope("resblock_{}".format(i)):
-                W1 = tf.get_variable("W1", [3, 3, 256, 256])
-                W2 = tf.get_variable("W2", [3, 3, 256, 256])
+                W1 = tf.get_variable(
+                    "W1", [3, 3, 256, 256], regularizer=regularizer)
+                W2 = tf.get_variable(
+                    "W2", [3, 3, 256, 256], regularizer=regularizer)
                 R1 = tf.nn.conv2d(R, W1, strides=[1, 1, 1, 1], padding='SAME')
                 R1 = _activation(batch_norm(
                     R1, config, self.is_train, scope="B1"))
@@ -50,14 +54,14 @@ class Model(object):
                 R = _activation(tf.add(R, R2))
 
         with tf.variable_scope("policy_head"):
-            W0 = tf.get_variable("W0", [1, 1, 256, 2])
+            W0 = tf.get_variable("W0", [1, 1, 256, 2], regularizer=regularizer)
             R_p = tf.nn.conv2d(R, W0, strides=[1, 1, 1, 1], padding='SAME')
             R_p = tf.reshape(_activation(batch_norm(
                 R_p, config, self.is_train)), [-1, 19 * 19 * 2])
             R_p = tf.nn.softmax(linear(R_p, 362, True))
 
         with tf.variable_scope("value_head"):
-            W0 = tf.get_variable("W0", [1, 1, 256, 1])
+            W0 = tf.get_variable("W0", [1, 1, 256, 1], regularizer=regularizer)
             R_v = tf.nn.conv2d(R, W0, strides=[1, 1, 1, 1], padding='SAME')
             R_v = tf.reshape(_activation(batch_norm(
                 R_v, config, self.is_train)), [-1, 19 * 19])
@@ -72,7 +76,8 @@ class Model(object):
         v_loss = tf.reduce_mean(tf.square(self.R_v - self.v))
         p_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=self.R_p, labels=self.p))
-        self.loss = p_loss + v_loss
+        r_loss = sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
+        self.loss = p_loss + v_loss + r_loss
 
     def get_loss(self):
         return self.loss

@@ -41,22 +41,19 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
 
 
 def evaluate(network, data_generator, max_batch=None):
-    losses = []
     accuracies = []
     mses = []
     for num, batch in enumerate(data_generator):
         state, action, value = batch
-        loss, R_p, R_v = network.response([state])
-        losses.append(loss)
+        R_p, R_v = network.response([state])
         mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
         accuracies.append(np.mean(mask.astype(np.float32)))
         mses.append(np.mean(np.square(R_v - value)))
         if max_batch and num > max_batch:
             break
-    loss = np.mean(losses)
     accuracy = np.mean(accuracies)
     mse = np.mean(mses)
-    return loss, accuracy, mse
+    return accuracy, mse
 
 
 def run_training(cmd_line_args=None):
@@ -150,11 +147,10 @@ def run_training(cmd_line_args=None):
                     dataset["results"],
                     val_indices,
                     args.minibatch)
-                loss, accuracy, mse = evaluate(model, val_data_generator)
+                accuracy, mse = evaluate(model, val_data_generator)
                 del val_data_generator
                 if args.verbose:
-                    print("Loss: {}, Accuracy: {}, MSE: {}".format(
-                        loss, accuracy, mse))
+                    print("Accuracy: {}, MSE: {}".format(accuracy, mse))
         del train_data_generator
 
 
