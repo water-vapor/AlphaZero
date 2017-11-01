@@ -76,7 +76,7 @@ class GameConverter:
         h5f = h5.File(tmp_file, 'w')
 
         try:
-            # see _
+            # see http://docs.h5py.org/en/latest/high/group.html#Group.create_dataset
             states = h5f.require_dataset(
                 'states',
                 dtype=np.uint8,
