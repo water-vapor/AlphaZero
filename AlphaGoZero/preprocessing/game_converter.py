@@ -12,6 +12,8 @@ import h5py as h5
 class SizeMismatchError(Exception):
     pass
 
+class NoResultError(Exception):
+    pass
 
 class GameConverter:
 
@@ -32,12 +34,15 @@ class GameConverter:
         with open(file_name, 'r') as file_object:
             state_action_iterator = sgf_iter_states(file_object.read(), include_end=False)
 
-        for (state, move, player) in state_action_iterator:
+        for (state, move, player, result) in state_action_iterator:
+            if result is None:
+                raise NoResultError()
             if state.size != bd_size:
                 raise SizeMismatchError()
-            if move != go.PASS_MOVE:
-                nn_input = self.feature_processor.state_to_tensor(state)
-                yield (nn_input, move)
+
+            # Generate features even for pass moves, since the history is different
+            nn_input = self.feature_processor.state_to_tensor(state)
+            yield (nn_input, move, result)
 
     def sgfs_to_hdf5(self, sgf_files, hdf5_file, bd_size=19, ignore_errors=True, verbose=False):
         """Convert all files in the iterable sgf_files into an hdf5 group to be stored in hdf5_file
@@ -55,6 +60,7 @@ class GameConverter:
             states  : dataset with shape (n_data, n_features, board width, board height)
             actions : dataset with shape (n_data, 2) (actions are stored as x,y tuples of
                       where the move was played)
+            results : dataset with shape (n_data, 1), +1 if current player wins, -1 otherwise
             file_offsets : group mapping from filenames to tuples of (index, length)
 
         For example, to find what positions in the dataset come from 'test.sgf':
@@ -87,6 +93,14 @@ class GameConverter:
                 exact=False,
                 chunks=(1024, 2),
                 compression="lzf")
+            results = h5f.require_dataset(
+                'results',
+                dtype=np.int8,
+                shape=(1, 1),
+                maxshape=(None, 1),
+                exact=False,
+                chunks=(1024,1),
+                compression="lzf")
 
             # 'file_offsets' is an HDF5 group so that 'file_name in file_offsets' is fast
             file_offsets = h5f.require_group('file_offsets')
@@ -106,12 +120,14 @@ class GameConverter:
                 n_pairs = 0
                 file_start_idx = next_idx
                 try:
-                    for state, move in self.convert_game(file_name, bd_size):
+                    for state, move, result in self.convert_game(file_name, bd_size):
                         if next_idx >= len(states):
                             states.resize((next_idx + 1, self.n_features, bd_size, bd_size))
                             actions.resize((next_idx + 1, 2))
+                            results.resize((next_idx + 1, 1))
                         states[next_idx] = state
                         actions[next_idx] = move
+                        results[next_idx] = result
                         n_pairs += 1
                         next_idx += 1
                 except go.IllegalMove:
@@ -121,6 +137,8 @@ class GameConverter:
                     warnings.warn("Could not parse %s\n\tdropping game" % file_name)
                 except SizeMismatchError:
                     warnings.warn("Skipping %s; wrong board size" % file_name)
+                except NoResultError:
+                    warnings.warn("Skipping %s; no result or non-standard result" % file_name)
                 except Exception as e:
                     # catch everything else
                     if ignore_errors:
