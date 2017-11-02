@@ -37,7 +37,7 @@ class MCTreeNode(object):
     		A tuple of (action, next_node) with highest Q(s,a)+U(s,a)
     	"""
     	# Argmax_a(Q(s,a)+U(s,a))
-    	return max(self._children.iteritems(), key=lambda act_node: act_node[1].get_value())
+    	return max(self._children.items(), key=lambda act_node: act_node[1].get_value())
 
     def update(self, v):
     	""" Update the three values
@@ -67,7 +67,7 @@ class MCTreeNode(object):
 
 class MCTSearch(object):
 
-	def __init__(self, nn_evaluator, max_playout = 1600):
+	def __init__(self, evaluator, max_playout = 1600):
 		"""
 		Arguments:
 			nn_evaluator: a function that takes a state and returns (value, policies),
@@ -75,7 +75,7 @@ class MCTSearch(object):
 				policies is a list of (action, prob)
 		"""
 		self._root = MCTreeNode(None, go.PASS_MOVE, 1.0)
-		self._nn_evaluator = nn_evaluator
+		self._evaluator = evaluator
 		self._max_playout = max_playout
 
 	def simulate(self, state, node):
@@ -91,20 +91,24 @@ class MCTSearch(object):
             simulate(state, next_node)
 
     	else:
-    		v, action_probs = self._nn_evaluator(state)
+    		v, action_probs = self._evaluator(state)
     		# Check for end of game.
 	        if len(action_probs) != 0:
 	            node.expand(action_probs)
 	            action, node = node.select()
 	            state.do_move(action) 
 
-        # Expand leaf
-        action_probs = self._policy(state)
-         # Check for end of game.
-        if len(action_probs) != 0:
-            node.expand(action_probs)
-            action, node = node.select()
-            state.do_move(action) 
+        node.update(v)
+
+    def get_move(self, state):
+    	"""Returns the best move from the state.
+    	"""
+    	for p in range(self._max_playout):
+    		self.simulate(state.copy(), self._root)
+
+    	return max(self._root._children.items(), key=lambda act_node: act_node[1]._n_visits)[0]
+   		
+
 
 
 
