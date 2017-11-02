@@ -28,41 +28,41 @@ class MCTreeNode(object):
 				the node to expand
 		"""
 		for action, prob in nn_output:
-            if action not in self._children:
-                self._children[action] = TreeNode(self, action, prob)
+			if action not in self._children:
+				self._children[action] = MCTreeNode(self, action, prob)
 
-    def select(self):
-    	"""
-    	Returns:
-    		A tuple of (action, next_node) with highest Q(s,a)+U(s,a)
-    	"""
-    	# Argmax_a(Q(s,a)+U(s,a))
-    	return max(self._children.items(), key=lambda act_node: act_node[1].get_value())
+	def select(self):
+		"""
+		Returns:
+			A tuple of (action, next_node) with highest Q(s,a)+U(s,a)
+		"""
+		# Argmax_a(Q(s,a)+U(s,a))
+		return max(self._children.items(), key=lambda act_node: act_node[1].get_value())
 
-    def update(self, v):
-    	""" Update the three values
-    	"""
-    	# N(s,a) = N(s,a) + 1
-    	self._visit_cnt += 1
-    	# W(s,a) = W(s,a) + v
-    	self._total_action_val += v
-    	# Q(s,a) = W(s,a) / N(s,a)
-    	self._mean_action_val = self._total_action_val / self._visit_cnt
+	def update(self, v):
+		""" Update the three values
+		"""
+		# N(s,a) = N(s,a) + 1
+		self._visit_cnt += 1
+		# W(s,a) = W(s,a) + v
+		self._total_action_val += v
+		# Q(s,a) = W(s,a) / N(s,a)
+		self._mean_action_val = self._total_action_val / self._visit_cnt
 
 
-    def get_value(self):
-    	""" Implements PUCT Algorithm's formula
-    	"""
-    	usa = s.c_puct * self._prior_prob * math.sqrt(self._parent._visit_cnt) / (1.0 + self._visit_cnt)
-    	return self._mean_action_val + usa
+	def get_value(self):
+		""" Implements PUCT Algorithm's formula
+		"""
+		usa = s.c_puct * self._prior_prob * math.sqrt(self._parent._visit_cnt) / (1.0 + self._visit_cnt)
+		return self._mean_action_val + usa
 
-    def is_leaf(self):
-        """Check if leaf node (i.e. no nodes below this have been expanded).
-        """
-        return self._children == {}
+	def is_leaf(self):
+		"""Check if leaf node (i.e. no nodes below this have been expanded).
+		"""
+		return self._children == {}
 
-    def is_root(self):
-        return self._parent is None
+	def is_root(self):
+		return self._parent is None
 
 
 class MCTSearch(object):
@@ -84,30 +84,30 @@ class MCTSearch(object):
 			state: current board state
 			node: the node to start simulation
 		"""
-        if not node.is_leaf():
-            # Greedily select next move.
-            action, next_node = node.select()
-            state.do_move(action)
-            simulate(state, next_node)
+		if not node.is_leaf():
+			# Greedily select next move.
+			action, next_node = node.select()
+			state.do_move(action)
+			simulate(state, next_node)
 
-    	else:
-    		v, action_probs = self._evaluator(state)
-    		# Check for end of game.
-	        if len(action_probs) != 0:
-	            node.expand(action_probs)
-	            action, node = node.select()
-	            state.do_move(action) 
+		else:
+			v, action_probs = self._evaluator(state)
+			# Check for end of game.
+			if len(action_probs) != 0:
+				node.expand(action_probs)
+				action, node = node.select()
+				state.do_move(action) 
 
-        node.update(v)
+		node.update(v)
 
-    def get_move(self, state):
-    	"""Returns the best move from the state.
-    	"""
-    	for p in range(self._max_playout):
-    		self.simulate(state.copy(), self._root)
+	def get_move(self, state):
+		"""Returns the best move from the state.
+		"""
+		for p in range(self._max_playout):
+			self.simulate(state.copy(), self._root)
 
-    	return max(self._root._children.items(), key=lambda act_node: act_node[1]._n_visits)[0]
-   		
+		return max(self._root._children.items(), key=lambda act_node: act_node[1]._n_visits)[0]
+			
 
 
 
