@@ -1,30 +1,26 @@
 import tensorflow as tf
 import numpy as np
+import yaml
 
 from Network.model import get_multi_models
 from Network.util import average_gradients
 
-config = tf.app.flags.FLAGS
-
-tf.app.flags.DEFINE_integer("num_blocks", 19, "number of residual blocks in the model")
-tf.app.flags.DEFINE_float("batch_decay", 0.9, "decay factor of batch normalization")
-tf.app.flags.DEFINE_float("learning_rate", 0.01, "lr of momentum optimizer")
-tf.app.flags.DEFINE_float("momentum", 0.9, "momentum of momentum optimizer")
-tf.app.flags.DEFINE_float("l2", 1e-4, "L2 regularization factor")
-
 
 class Network(object):
 
-    def __init__(self, num_gpu=1):
+    def __init__(self, num_gpu=1, config_file="Network/reinforce.yaml"):
+        with open(config_file) as fh:
+            self.config = yaml.load(fh)
         self.num_gpu = num_gpu
-        self.models = get_multi_models(self.num_gpu, config)
+        self.models = get_multi_models(self.num_gpu, self.config)
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=sess_config)
         self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
+        self.lr = tf.placeholder(tf.float32, [], name="lr")
         self.opt = tf.train.MomentumOptimizer(
-            config.learning_rate, momentum=config.momentum)
+            self.lr, momentum=self.config["momentum"])
 
         loss_list = []
         grad_list = []
@@ -59,6 +55,16 @@ class Network(object):
         Return: Average loss of the batch
 
         '''
+        global_step = self.get_global_step()
+        if global_step % 1000 == 0:
+            learning_scheme = self.config["learning_rate"]
+            divides = learning_scheme.keys().sort()
+            current = 0
+            for element in divides:
+                if element < global_step:
+                    current = element
+            self.learning_rate = learning_scheme[current]
+
         feed_dict = {}
         batch = len(data[0].shape[0])
         piece = batch / self.num_gpu
@@ -71,6 +77,7 @@ class Network(object):
             feed_dict[model.p] = data[1][start_idx: end_idx]
             feed_dict[model.v] = data[2][start_idx: end_idx]
             feed_dict[model.is_train] = True
+        feed_dict[self.lr] = self.learning_rate
         loss, train_op = self.sess.run(
             [self.loss, self.train_op], feed_dict=feed_dict)
         return loss
@@ -99,7 +106,7 @@ class Network(object):
         return R_p, R_v
 
     def get_global_step(self):
-        return self.sess.run(self.models[0].global_step) + 1
+        return self.sess.run(self.models[0].global_step)
 
     def save(self, filename):
         global_step = self.get_global_step()
