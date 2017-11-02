@@ -591,6 +591,22 @@ class GameState(object):
                 self.is_end_of_game = True
         return self.is_end_of_game
 
+    def transform(transform_id):
+        """ Transform the current board and the history boards according to D(4).
+            Caution: self.history (action history) is not modified, thus this function
+            should ONLY be used for state evaluation.
+            Arguments:
+                transform_id: integer in range [0, 7]
+        """
+        # List of boards to transform
+        boards_to_transform = self.board_history + [self.board]
+        for b in boards_to_transform:
+            # Performs reflection
+            if transform_id // 4 == 1:
+                b = np.fliplr(b)
+            # Performs rotation
+            b = np.rot90(b, transform_id % 4)
+
 
 
 

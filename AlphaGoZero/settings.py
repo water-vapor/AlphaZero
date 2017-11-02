@@ -1,3 +1,4 @@
 
-raw_dirs = ['kgs-19-2016-01-new']
+# Some Constants
 history_length = 8
+c_puct = 5.0
