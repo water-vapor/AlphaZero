@@ -1,5 +1,6 @@
 import numpy as np
 import math
+from AlphaGoZero.math_helper import random_variate_dirichlet, weighted_random_choice
 import AlphaGoZero.settings as s
 
 
@@ -15,13 +16,14 @@ class MCTreeNode(object):
 		self._visit_cnt = 0
 		# W(s,a)
 		self._total_action_val = 0
-		# Q(s,a)
-		self._mean_action_val = 0
+		# Q(s,a) need not to be stored, since Q(s,a) always equal to W(s,a)/N(s,a)
+		#self._mean_action_val = 0
 		# P(s,a)
 		self._prior_prob = prior_prob
 
 	def expand(self, policy, value):
 		""" Expand a leaf node according to the network evaluation.
+			NO visit count is updated in this function, make sure it's updated externally
 		Arguments:
 			policy: a list of (action, prob) tuples returned by the network
 			value: the value of this node returned by the network
@@ -46,7 +48,7 @@ class MCTreeNode(object):
 			A tuple of (action, next_node) with highest Q(s,a)+U(s,a)
 		"""
 		# Argmax_a(Q(s,a)+U(s,a))
-		return max(self._children.items(), key=lambda act_node: act_node[1].get_value())
+		return max(self._children.items(), key=lambda act_node: act_node[1].get_selection_value())
 
 	def update(self, v):
 		""" Update the three values
@@ -57,18 +59,22 @@ class MCTreeNode(object):
 		#self._visit_cnt += 1
 		# W(s,a) = W(s,a) + v
 		self._total_action_val += v
-		# Q(s,a) = W(s,a) / N(s,a)
-		self._mean_action_val = self._total_action_val / self._visit_cnt
 
 
-
-	def get_value(self):
+	def get_selection_value(self):
 		""" Implements PUCT Algorithm's formula for current node.
 		"""
 		#U(s,a)=c_punt * P(s,a) * sqrt(Parent's N(s,a)) / (1 + N(s,a))
 		usa = s.c_puct * self._prior_prob * math.sqrt(self._parent._visit_cnt) / (1.0 + self._visit_cnt)
 		#Q(s,a) + U(s,a)
-		return self._mean_action_val + usa
+		return self.get_mean_action_value() + usa
+
+	def get_mean_action_value(self):
+		"""Calculates Q(s,a)
+		"""
+		# TODO: Should this value be inverted with color? 
+		# If yes, the signature should be changed to (self, color)
+		return self._total_action_val / self._visit_cnt
 
 	def is_leaf(self):
 		"""Check if leaf node (i.e. no nodes below this have been expanded).
@@ -93,7 +99,6 @@ class MCTSearch(object):
 				policies is a list of (action, prob)
 		"""
 		self._root = MCTreeNode(None, 1.0)
-		self._state = state
 		self._transformer = transformer
 		self._evaluator = evaluator
 		self._max_playout = max_playout
@@ -112,21 +117,45 @@ class MCTSearch(object):
 			# Greedily select next move.
 			action, next_node = node.select()
 			state.do_move(action)
-			simulate(state, next_node)
+			# The result of the simulation is returned after the complete playout
+			# Update this level of node with this value
+			simres_value = _playout(state, next_node)
+			# Visit count is updated when. this node is first called with _playout
+			# Therefore there is no visit count update in update()
+			node.update(simres_value)
+			# Return the same result to the parent
+			return simres_value
 
-		else:
+		else: # Node is a leaf
 			# Evaluate the state and get output from NN
 			children_candidates, value = self._evaluator(self._transformer(state))
 			# TODO: Remove invalid children
 
-			# Check for end of game.
+			# If not the end of game, expand node and terminate playout.
+			# Else just terminate playout.
 			if len(children_candidates) != 0:
 				node.expand(children_candidates, value)
+				# Since a leaf has 0 visit and the just expanded node has 1
+				# Q(s,a)=W(s,a)
+				# This value may relate to the color, therefore calling the function
+				# Return the value to update (recursively)
+				return node.get_mean_action_value()
 
-		node.update(value)
+		
 
-	def _select_best_move(self):
-		pass
+	def _select_best_move(self, prop_exp = True):
+		""" Select the move to play according to N(s,a).
+			Arguments:
+				prop_exp: If enabled, select node randomly with probability
+					N(s,a)/ParentN(s,a)
+		"""
+		if prop_exp:
+			# A list of (action, selection_weight), weight is not necessarily normalized
+			move_prob = [(action, node._visit_cnt) for action, node in self._root._children.items()]
+			return weighted_random_choice(move_prob)
+		else:
+			# Directly select the node with most visits
+			return max(self._root._children.items(), key=lambda act_node: act_node[1]._visit_cnt)[0]
 
 	def calc_move(self, state, dirichlet = False, prop_exp = True):
 		"""Calculates the best move from the state to play.
@@ -141,7 +170,7 @@ class MCTSearch(object):
 
 		"""
 		# The root of the tree is visited.
-		self._root._n_visits += 1
+		self._root._visit_cnt += 1
 
 		# Dirichlet noise is applied to the children of the roots, we will expand the 
 		# root first
@@ -158,7 +187,7 @@ class MCTSearch(object):
 
 		if dirichlet:
 			# Get a list of random numbers from d=Dirichlet distribution
-			dirichlet_rand = random_variate_dirichlet(s.d_alpha, s.d_epsilon, len(self._root._children))
+			dirichlet_rand = random_variate_dirichlet(s.d_alpha, len(self._root._children))
 			for action, eta in zip(self._root._children.keys(), dirichlet_rand):
 				# Update the P(s,a) of all children of root
 				self._root._children[action]._prior_prob = (1-s.d_epsilon) * self._root._children[action]._prior_prob + s.d_epsilon * eta
@@ -169,14 +198,16 @@ class MCTSearch(object):
 			self._playout(state.copy(), self._root)
 
 		# Select the best move according to the final search tree
-		best_move = self._select_best_move()
+		best_move = self._select_best_move(prop_exp)
 		return best_move
 
-		#return max(self._root._children.items(), key=lambda act_node: act_node[1]._n_visits)[0]
-			
-
-
-
-
-
+    def update_with_move(self, last_move):
+        """Step forward in the tree, keeping everything we already know about the subtree, assuming
+        that calc_move() has been called already. Siblings of the new root will be garbage-collected.
+        """
+        if last_move in self._root._children:
+            self._root = self._root._children[last_move]
+            self._root._parent = None
+        else:
+            self._root = MCTreeNode(None, 1.0)	
 
