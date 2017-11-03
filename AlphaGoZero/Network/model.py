@@ -32,7 +32,7 @@ class Model(object):
     def _build_forward(self):
         config = self.config
         _activation = tf.nn.relu
-        regularizer = tf.contrib.layers.l2_regularizer(scale=self.config.l2)
+        regularizer = tf.contrib.layers.l2_regularizer(scale=self.config["l2"])
 
         inputs = tf.transpose(self.x, [0, 2, 3, 1])
         W0 = tf.get_variable(
@@ -40,7 +40,7 @@ class Model(object):
         R = tf.nn.conv2d(inputs, W0, strides=[1, 1, 1, 1], padding='SAME')
         R = _activation(batch_norm(R, config, self.is_train))
 
-        for i in range(config.num_blocks):
+        for i in range(config["num_blocks"]):
             with tf.variable_scope("resblock_{}".format(i)):
                 W1 = tf.get_variable(
                     "W1", [3, 3, 256, 256], regularizer=regularizer)
@@ -77,7 +77,7 @@ class Model(object):
         p_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
             logits=self.R_p, labels=self.p))
         r_loss = sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
-        self.loss = p_loss + v_loss + r_loss
+        self.loss = p_loss + v_loss * self.config["MSE_scaling"] + r_loss
 
     def get_loss(self):
         return self.loss
