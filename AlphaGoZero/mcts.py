@@ -201,13 +201,13 @@ class MCTSearch(object):
 		best_move = self._select_best_move(prop_exp)
 		return best_move
 
-    def update_with_move(self, last_move):
-        """Step forward in the tree, keeping everything we already know about the subtree, assuming
-        that calc_move() has been called already. Siblings of the new root will be garbage-collected.
-        """
-        if last_move in self._root._children:
-            self._root = self._root._children[last_move]
-            self._root._parent = None
-        else:
-            self._root = MCTreeNode(None, 1.0)	
+	def update_with_move(self, last_move):
+		"""Step forward in the tree, keeping everything we already know about the subtree, assuming
+		that calc_move() has been called already. Siblings of the new root will be garbage-collected.
+		"""
+		if last_move in self._root._children:
+			self._root = self._root._children[last_move]
+			self._root._parent = None
+		else:
+			self._root = MCTreeNode(None, 1.0)
 
