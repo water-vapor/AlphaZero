@@ -10,7 +10,10 @@ def random_state_transform(state):
 	return transformed_state
 
 def random_variate_dirichlet(alpha, length):
-	pass
+	# Dirichlet distribution can be generated from Gamma distribution.
+	# Reference: https://en.wikipedia.org/wiki/Dirichlet_distribution#Gamma_distribution
+	# For 1D case, Dir(alpha) ~  Gamma(alpha, 1)
+	return [random.gammavariate(alpha, 1) for _ in range(length)]
 
 def weighted_random_choice(li):
 	# This requires Python 3.6, should be implemented otherwise
