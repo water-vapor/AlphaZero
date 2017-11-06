@@ -94,7 +94,7 @@ class MCTSearch(object):
 		Arguments:
 			transformer: The transforming function before the NN evaluation.
 				Refers to the dihedral reflection and rotation in the paper.
-			evaluator: A function that takes a state and returns (value, policies),
+			evaluator: A function that takes a state and returns (policies, value),
 				where value is a float in range [-1,1]
 				policies is a list of (action, prob)
 		"""
