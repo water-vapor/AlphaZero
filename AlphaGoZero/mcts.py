@@ -31,10 +31,8 @@ class MCTreeNode(object):
 		# Check if the node is leaf
 		if not self.is_leaf():
 			return
-
-		# TODO: Should value be inverted according to the player?
 		# Update W(s,a) for this parent node by formula W(s,a) = W(s,a) + v
-		self._total_action_val += value
+		self.update(v)
 		# Create valid children
 		for action, prob in policy:
 			# TODO: Is there an extra condition to check pass and suicide?
@@ -116,13 +114,16 @@ class MCTSearch(object):
 		if not node.is_leaf():
 			# Greedily select next move.
 			action, next_node = node.select()
+			# 
+			current_player = state.current_player
 			state.do_move(action)
 			# The result of the simulation is returned after the complete playout
 			# Update this level of node with this value
 			simres_value = _playout(state, next_node)
 			# Visit count is updated when. this node is first called with _playout
 			# Therefore there is no visit count update in update()
-			node.update(simres_value)
+			# Update relative value
+			node.update(current_player * simres_value)
 			# Return the same result to the parent
 			return simres_value
 
@@ -134,12 +135,15 @@ class MCTSearch(object):
 			# If not the end of game, expand node and terminate playout.
 			# Else just terminate playout.
 			if len(children_candidates) != 0:
-				node.expand(children_candidates, value)
-				# Since a leaf has 0 visit and the just expanded node has 1
+				# Value stored (total action value) is always relative to itself
+				# i.e. 1 if it wins and -1 if it loses
+				# value returned by NN has -1 when white wins, multiplication will inverse
+				node.expand(children_candidates, state.current_player * value)
 				# Q(s,a)=W(s,a)
-				# This value may relate to the color, therefore calling the function
-				# Return the value to update (recursively)
-				return node.get_mean_action_value()
+				# Return the black win value to update (recursively)
+				return value
+			else:
+
 
 		
 
