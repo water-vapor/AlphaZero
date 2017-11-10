@@ -36,7 +36,7 @@ class MCTreeNode(object):
 		# Create valid children
 		for action, prob in policy:
 			# TODO: Is there an extra condition to check pass and suicide?
-			#		Assuming illegal move is removed from nn_output already.
+			# 		checking will be moved to MCTSearch
 			if action not in self._children:
 				self._children[action] = MCTreeNode(self, prob)
 
@@ -130,8 +130,8 @@ class MCTSearch(object):
 		else: # Node is a leaf
 			# Evaluate the state and get output from NN
 			children_candidates, value = self._evaluator(self._transformer(state))
-			# TODO: Remove invalid children
-
+			# Remove invalid children
+			children_candidates = [(action, prob) for action, prob in children_candidates if state.is_legal(action)]
 			# If not the end of game, expand node and terminate playout.
 			# Else just terminate playout.
 			if len(children_candidates) != 0:
@@ -183,8 +183,8 @@ class MCTSearch(object):
 			# Evaluate the state and get output from NN
 			children_candidates, value = self._evaluator(self._transformer(state))
 
-			# TODO: Remove the problematic children, the function could be external
-			#children_candidates = remove_invalid(state, children_candidates)
+			# Remove invalid children
+			children_candidates = [(action, prob) for action, prob in children_candidates if state.is_legal(action)]
 
 			# Only create legal children
 			self._root.expand(children_candidates, value)
