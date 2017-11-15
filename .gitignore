@@ -6,3 +6,13 @@ __pycache__/
 
 #ignore data
 data/
+
+
+#ignore non sample data in tests
+tests/test_data/sgf/*
+!tests/test_data/sgf/G1.sgf
+!tests/test_data/sgf/G2.sgf
+!tests/test_data/sgf/G3.sgf
+
+
+
