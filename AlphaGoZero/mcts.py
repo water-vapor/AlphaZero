@@ -59,11 +59,11 @@ class MCTreeNode(object):
 		self._total_action_val += v
 
 
-	def get_selection_value(self):
+	def get_selection_value(self, c_punt=s.c_puct):
 		""" Implements PUCT Algorithm's formula for current node.
 		"""
 		#U(s,a)=c_punt * P(s,a) * sqrt(Parent's N(s,a)) / (1 + N(s,a))
-		usa = s.c_puct * self._prior_prob * math.sqrt(self._parent._visit_cnt) / (1.0 + self._visit_cnt)
+		usa = c_punt * self._prior_prob * math.sqrt(self._parent._visit_cnt) / (1.0 + self._visit_cnt)
 		#Q(s,a) + U(s,a)
 		return self.get_mean_action_value() + usa
 
@@ -161,7 +161,7 @@ class MCTSearch(object):
 			# Directly select the node with most visits
 			return max(self._root._children.items(), key=lambda act_node: act_node[1]._visit_cnt)[0]
 
-	def calc_move(self, state, dirichlet = False, prop_exp = True):
+	def calc_move(self, state, dirichlet = False, prop_exp = True, d_alpha=s.d_alpha, d_epsilon=s.d_epsilon):
 		"""Calculates the best move from the state to play.
 			Remarks:
 				"temperature" parameter of the two random dist is not implemented,
@@ -191,10 +191,10 @@ class MCTSearch(object):
 
 		if dirichlet:
 			# Get a list of random numbers from d=Dirichlet distribution
-			dirichlet_rand = random_variate_dirichlet(s.d_alpha, len(self._root._children))
+			dirichlet_rand = random_variate_dirichlet(d_alpha, len(self._root._children))
 			for action, eta in zip(self._root._children.keys(), dirichlet_rand):
 				# Update the P(s,a) of all children of root
-				self._root._children[action]._prior_prob = (1-s.d_epsilon) * self._root._children[action]._prior_prob + s.d_epsilon * eta
+				self._root._children[action]._prior_prob = (1-d_epsilon) * self._root._children[action]._prior_prob + d_epsilon * eta
 
 		# Do search loop while playout limit is not reached and time remains
 		# TODO: Implement timing module
