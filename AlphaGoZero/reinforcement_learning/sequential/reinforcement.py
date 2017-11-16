@@ -18,26 +18,23 @@ def main():
 		random_model = Network()
 		best = get_current_time()
 		random_model.save(best)
+	else:
+		best = args.model
 
-	all_models = [best]
-
-	# Generate selfplay data
-	selfplay(best, best + '_data')
-	train_h5_path = sgf_to_h5(best + '_data', best + '_data', 'train.h5')
-	#model_to_train = best
+	best_defeated = True
+	new_model = best
 
 	# The evolution logic is not clearly described in the paper. 
-	# Assuming only the best player will be trained
+	# Assuming the training happens sequentially, always optimize the newest model
 	while True:
-		new_model = get_current_time()
-		optimize(train_h5_path, best, new_model)
-		all_models.append(new_model)
-		best_defeated = evaluate(best, new_model)
 		if best_defeated:
 			best = new_model
 			selfplay(best, best + '_data')
 			train_h5_path = sgf_to_h5(best + '_data', best + '_data', 'train.h5')
-
+		prev_model = new_model
+		new_model = get_current_time()
+		optimize(train_h5_path, prev_model, new_model)
+		best_defeated = evaluate(best, new_model)
 
 
 if __name__ == '__main__':
