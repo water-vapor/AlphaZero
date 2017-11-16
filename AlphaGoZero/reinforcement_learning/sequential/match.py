@@ -33,10 +33,11 @@ class Match(object):
 		gs = GameState(size=board_size)
 
 		# Randomly assign colors
-		if np.random.randint(2) == 0:
-			current_player = 1
-		else:
+		player1_is_black = np.random.randint(2) == 0
+		if player1_is_black:
 			current_player = 0
+		else:
+			current_player = 1
 		# Play the game
 		for turn in range(max_moves):
 			# Whether to enable exploration depends on the mode
@@ -63,6 +64,6 @@ class Match(object):
 			# TODO: How should we deal with ties? discarding ties for now
 			return 0
 		save_gamestate_to_sgf(gs, save_path, save_filename, result=result_string)
-		return result
+		return player1_is_black, result
 
 

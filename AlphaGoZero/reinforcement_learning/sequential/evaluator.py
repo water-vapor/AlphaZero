@@ -12,7 +12,7 @@ def evaluate(best_player_path, player_eval_path, save_path, num_games=400, num_g
 	best_win = 0
 
 	for num_game in range(num_games):
-		best_is_back, result = match.play(save_path, num_game)
+		best_is_back, result = match.play(save_path, str(num_game))
 		if (best_is_back and result is BLACK) or (not best_is_back and result is WHITE):
 			best_win += 1
 
