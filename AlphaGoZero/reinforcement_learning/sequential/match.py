@@ -23,7 +23,7 @@ class Match(object):
 		self.player2 = Model(num_gpu)
 		self.player2.load(player2_path)
 
-	def play(self, save_path, save_filename):
+	def play(self, save_path, save_filename, is_selfplay=False):
 		""" Plays the game and saves to a sgf file.
 		"""
 
@@ -37,8 +37,13 @@ class Match(object):
 			current_player = 1
 		else:
 			current_player = 0
-		for _ in range(max_moves):
-			move = mcts[current_player].calc_move(gs)
+		for turn in range(max_moves):
+			# Whether to enable exploration depends on the mode
+			if is_selfplay and turn+1 <= 30:
+				dirichlet = True
+			else:
+				dirichlet = False
+			move = mcts[current_player].calc_move(gs, dirichlet)
 			gs.do_move(move)
 			for p in range(2):
 				mcts[p].update_with_move(gs)
