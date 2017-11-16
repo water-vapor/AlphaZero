@@ -2,7 +2,7 @@ from AlphaGoZero.Network.main import Model
 from AlphaGoZero.util import save_gamestate_to_sgf
 from AlphaGoZero.mcts import MCTSearch
 from AlphaGoZero.math_helper import random_state_transform
-from AlphaGoZero.go import GameState, PASS
+from AlphaGoZero.go import GameState, BLACK, WHITE
 
 class Match(object):
 	""" A class that plays the game between two NN players.
@@ -37,6 +37,7 @@ class Match(object):
 			current_player = 1
 		else:
 			current_player = 0
+		# Play the game
 		for turn in range(max_moves):
 			# Whether to enable exploration depends on the mode
 			if is_selfplay and turn+1 <= 30:
@@ -50,8 +51,18 @@ class Match(object):
 			current_player = 1 - current_player
 			# Check all possible exit conditions
 			history = gs.get_history()
-			if len(history) >= 2 and history[-1] is PASS and history[-2] is PASS:
+			if gs.is_end_of_game:
 				break
-		save_gamestate_to_sgf(gs, save_path, save_filename)
+		# Game ends
+		result = gs.get_winner()
+		if result is WHITE:
+			result_string = "W"
+		elif result is BLACK:
+			result_string = "B"
+		else:
+			# TODO: How should we deal with ties? discarding ties for now
+			return 0
+		save_gamestate_to_sgf(gs, save_path, save_filename, result=result_string)
+		return result
 
 
