@@ -157,22 +157,19 @@ class MCTSearch(object):
             else:
                 return value
 
-    def _select_best_move(self, prop_exp=True):
-        """ Select the move to play according to N(s,a).
-            Arguments:
-                prop_exp: If enabled, select node randomly with probability
-                    N(s,a)/ParentN(s,a)
+    def _get_search_probs(self):
+        """ Calculate the search probabilities exponentially to the visit counts.
+            Returns:
+                normalized_probs: a list of (action, probs)
         """
-        if prop_exp:
-            # A list of (action, selection_weight), weight is not necessarily normalized
-            move_prob = [(action, node.visit_count) for action, node in self._root.children.items()]
-            return weighted_random_choice(move_prob)
-        else:
-            # Directly select the node with most visits
-            return max(self._root.children.items(), key=lambda act_node: act_node[1].visit_count)[0]
+        # A list of (action, selection_weight), weight is not normalized
+        moves = [(action, node.visit_count) for action, node in self._root.children.items()]
+        total = sum([count for _, count in moves])
+        normalized_probs = [(action, count / total) for action, count in moves]
+        return normalized_probs
 
-    def calc_move(self, state, dirichlet=False, prop_exp=True, d_alpha=s.d_alpha, d_epsilon=s.d_epsilon):
-        """Calculates the best move from the state to play.
+    def _calc_move(self, state, dirichlet=False, d_alpha=s.d_alpha, d_epsilon=s.d_epsilon):
+        """ Performs MCTS
             Remarks:
                 "temperature" parameter of the two random dist is not implemented,
                 because the value is set to either 1 or 0 in the paper, which can
@@ -180,7 +177,6 @@ class MCTSearch(object):
             Arguments:
                 state: current state
                 dirichlet: enable Dirichlet noise described in "Self-play" section
-                prop_exp: select the final decision proportional to its exponential visit
                 d_alpha: value of alpha parameter
                 d_epsilon: value of epsilon parameter
 
@@ -206,7 +202,7 @@ class MCTSearch(object):
             dirichlet_rand = random_variate_dirichlet(d_alpha, len(self._root.children))
             for action, eta in zip(self._root.children.keys(), dirichlet_rand):
                 # Update the P(s,a) of all children of root
-                self._root.children[action]._prior_prob = (1 - d_epsilon) * self._root.children[
+                self._root.children[action].prior_prob = (1 - d_epsilon) * self._root.children[
                     action].prior_prob + d_epsilon * eta
 
         # Do search loop while playout limit is not reached and time remains
@@ -214,9 +210,48 @@ class MCTSearch(object):
         for _ in range(self._max_playout):
             self._playout(state.copy(), self._root)
 
+    def calc_move(self, state, dirichlet=False, prop_exp=True, d_alpha=s.d_alpha, d_epsilon=s.d_epsilon):
+        """ Calculates the best move
+
+        Args:
+            state: current state
+            dirichlet: enable Dirichlet noise described in "Self-play" section
+            prop_exp: select the final decision proportional to its exponential visit
+            d_alpha: value of alpha parameter
+            d_epsilon: value of epsilon parameter
+
+        Returns:
+            result: an action (x, y)
+
+        """
+        self._calc_move(state, dirichlet, d_alpha, d_epsilon)
         # Select the best move according to the final search tree
-        best_move = self._select_best_move(prop_exp)
-        return best_move
+        # select node randomly with probability: N(s,a)/ParentN(s,a)
+        if prop_exp:
+            # A list of (action, selection_weight), weight is not necessarily normalized
+            return weighted_random_choice(self._get_search_probs())
+        else:
+            # Directly select the node with most visits
+            return max(self._root.children.items(), key=lambda act_node: act_node[1].visit_count)[0]
+
+    def calc_move_with_probs(self, state, dirichlet=False, d_alpha=s.d_alpha, d_epsilon=s.d_epsilon):
+        """ Calculates the best move, and return the search probabilities.
+            This function should only be used for self-play.
+
+        Args:
+            state: current state
+            dirichlet: enable Dirichlet noise described in "Self-play" section
+            d_alpha: value of alpha parameter
+            d_epsilon: value of epsilon parameter
+
+        Returns:
+            result: an action (x, y)
+            probs: MCTS search probabilities, a list of (action, probs)
+        """
+        self._calc_move(state, dirichlet, d_alpha, d_epsilon)
+        probs = self._get_search_probs()
+        result = weighted_random_choice(self._get_search_probs())
+        return result, probs
 
     def update_with_move(self, last_move):
         """Step forward in the tree, keeping everything we already know about the subtree, assuming
