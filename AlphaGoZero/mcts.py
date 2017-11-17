@@ -155,7 +155,8 @@ class MCTSearch(object):
             # Q(s,a)=W(s,a)
             # Return the black win value to update (recursively)
             else:
-                return value
+                pass
+            return value
 
     def _get_search_probs(self):
         """ Calculate the search probabilities exponentially to the visit counts.
