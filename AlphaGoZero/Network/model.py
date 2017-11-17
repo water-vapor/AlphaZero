@@ -1,5 +1,5 @@
 import tensorflow as tf
-from Network.util import batch_norm, linear
+from AlphaGoZero.Network.util import batch_norm, linear
 
 
 def get_multi_models(num_gpu, config):

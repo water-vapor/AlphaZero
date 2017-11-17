@@ -2,8 +2,8 @@ import argparse
 import h5py as h5
 import numpy as np
 
-from preprocessing.preprocessing import Preprocess
-from Network.main import Network
+from AlphaGoZero.preprocessing.preprocessing import Preprocess
+from AlphaGoZero.Network.main import Network
 
 
 def one_hot_action(action, size=19):

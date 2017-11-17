@@ -1,2 +1,4 @@
-numpy==1.13.1
-tensorflow==1.3.0
+h5py
+sgf
+numpy>=1.13.1
+tensorflow>=1.3.0

@@ -2,8 +2,8 @@ import tensorflow as tf
 import numpy as np
 import yaml
 
-from Network.model import get_multi_models
-from Network.util import average_gradients
+from AlphaGoZero.Network.model import get_multi_models
+from AlphaGoZero.Network.util import average_gradients
 
 
 class Network(object):
