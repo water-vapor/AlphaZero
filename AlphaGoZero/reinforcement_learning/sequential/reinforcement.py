@@ -25,8 +25,9 @@ def main():
 
     best_defeated = True
     new_model = best
-    # Store models in a sequential order, since optimization requires 500,000/25,000 recent self-play games
-    models = [best]
+    # Store best models self-play data in a sequential order, since optimization requires 500,000/25,000 recent
+    # self-play games
+    best_models_data = []
 
     # The evolution logic is not clearly described in the paper.
     # Assuming the training happens sequentially, always optimize the newest model
@@ -34,12 +35,12 @@ def main():
         if best_defeated:
             best = new_model
             selfplay(best, best + '_data')
-            train_h5_path = sgf_to_h5(best + '_data', best + '_data', 'train.h5')
+            sgf_to_h5(best + '_data', best + '_data', 'train.h5')
+            best_models_data.append(best + '_data')
         prev_model = new_model
         new_model = get_current_time()
-        optimize(train_h5_path, prev_model, new_model)
-        # Record the new model after its optimization
-        models.append(new_model)
+        # Optimize with recently generated self play data, which is in a list of folders
+        optimize(best_models_data[- min(20, len(best_models)):], prev_model, new_model)
         best_defeated = evaluate(best, new_model)
 
 
