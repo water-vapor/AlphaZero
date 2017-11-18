@@ -88,7 +88,7 @@ class Match(object):
         else:
             # TODO: How should we deal with ties? discarding ties for now
             return 0
-        save_gamestate_to_sgf(gs, save_path, save_filename, result=result_string)
+        save_gamestate_to_sgf(gs, save_path, save_filename + '.sgf', result=result_string)
 
         # Return an extra list of search probabilities in the same order, other features can be extracted in sgf
         # search_probs_history is a list of a list of (action, probs)
