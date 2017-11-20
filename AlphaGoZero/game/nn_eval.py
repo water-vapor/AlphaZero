@@ -39,6 +39,8 @@ class NNEvaluator:
         self.net = net
         atexit.register(kill_children)  # kill all the children when the program exit
         self.listen_proc = mp.Process(target=self.listen)
+        self.active_game = mp.Semaphore(0)
+        self.loading = mp.Lock()
 
     def __enter__(self):
         """Will be called where the "with" statement begin"""
@@ -61,6 +63,19 @@ class NNEvaluator:
         self.queue.put(req)
         req.sem.acquire()
         return req.result
+
+    def load(self, filename):
+        self.loading.acquire()      # loading lock
+
+        self.active_game.acquire()  # check whether there are active games
+        self.active_game.release()  # release semaphore
+
+        self.net.load(filename)
+
+        self.loading.release()      # release lock
+
+    def save(self, filename):
+        self.net.save(filename)
 
     def listen(self):
         """
