@@ -39,7 +39,7 @@ def sgf_to_h5(path_to_sgf, destination_path, filename):
     run_game_converter(args)
     return h5path
 	
-def combined_selfplay_train_data_generator(h5_files, num_batch):
+def combined_selfplay_h5_train_data_generator(h5_files, num_batch):
 	state_datasets = [h5f['states'] for h5f in h5_files]
 	search_probs_datasets = [h5f['search_probs'] for h5f in h5_files]
 	result_datasets = [h5f['results'] for h5f in h5_files]
@@ -74,3 +74,24 @@ def _selfplay_shuffled_hdf5_batch_generator(state_dataset, search_probs_dataset,
             if batch_idx == batch_size:
                 batch_idx = 0
                 yield (Xbatch, Ybatch, Zbatch)
+				
+def shuffled_npy_batch_generator(state_dataset, probs_dataset, result_dataset, indices, num_batch):
+    state_batch_shape = (batch_size,) + state_dataset.shape[1:]
+    game_size = state_batch_shape[-1]
+    Xbatch = np.zeros(state_batch_shape)
+    Ybatch = np.zeros((batch_size, game_size * game_size + 1), dtype=np.float32)
+    Zbatch = np.zeros(batch_size)
+    batch_idx = 0
+    while True:
+        for data_idx in indices:
+            state = np.array([plane for plane in state_dataset[data_idx]])
+            search_probs = search_probs_dataset[data_idx]
+            result = result_dataset[data_idx]
+            Xbatch[batch_idx] = state
+            Ybatch[batch_idx] = search_probs
+            Zbatch[batch_idx] = result
+            batch_idx += 1
+            if batch_idx == batch_size:
+                batch_idx = 0
+                yield (Xbatch, Ybatch, Zbatch)
+	

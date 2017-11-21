@@ -4,7 +4,7 @@ from AlphaGoZero.Network.main import Network
 from AlphaGoZero.reinforcement_learning.sequential.optimization import optimize, sgf_to_h5
 from AlphaGoZero.reinforcement_learning.sequential.evaluator import evaluate
 from AlphaGoZero.reinforcement_learning.sequential.selfplay import selfplay
-from AlphaGoZero.reinforcement_learning.sequential.util import selfplay_to_h5, get_current_time
+from AlphaGoZero.reinforcement_learning.sequential.util import selfplay_to_array, get_current_time
 
 def main():
 	""" File structure: The program uses 'data/models', 'data/selfplay/' and 'data/evaluations' as defaults.
@@ -64,7 +64,7 @@ def main():
 		if rl_info['should_selfplay']:
 			# Generate selfplay data and save to a h5 file
 			selfplay(rl_info['best_model'], base_dir=args.directory)
-			selfplay_to_h5(rl_info['best_model'], base_dir=args.directory)
+			selfplay_to_array(rl_info['best_model'], base_dir=args.directory)
 			rl_info['selfplay'].append(rl_info['best_model')
 			rl_info['should_selfplay'] = False
 		
