@@ -22,7 +22,7 @@ def selfplay(best_player, base_dir='data', num_games=25000):
     for num_game in range(num_games):
         _, _, search_probs = match.play(os.path.join(base_dir, 'selfplay', best_player), str(num_game) + '.sgf', is_selfplay=True)
         # Save the raw list to a pickle file
-        with open(str(num_game) + '.pkl', 'rb+') as f:
+        with open(os.path.join(base_dir, 'selfplay', best_player, str(num_game) + '.pkl'), 'rb+') as f:
             pickle.dump(search_probs, f)
 
         # TODO: auto resignation should be implemented
