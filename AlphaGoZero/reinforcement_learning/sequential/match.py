@@ -1,4 +1,4 @@
-import random
+import random, os
 from AlphaGoZero.Network.main import Network
 from AlphaGoZero.util import save_gamestate_to_sgf
 from AlphaGoZero.mcts import MCTSearch
@@ -12,13 +12,16 @@ class Match(object):
         To parallelize, consider multiple matches sharing the player1's and player2's model session.
     """
 
-    def __init__(self, player1_path, player2_path, board_size=19, max_moves=400, num_gpu=1):
+    def __init__(self, player1, player2, base_dir='data', board_size=19, max_moves=400, num_gpu=1):
         """
             Arguments:
-                player1_path: the path to the model of player1
-                player2_path: the path to the model of player2
+                player1: name of player 1
+                player2: name of player 2
         """
-        # These models can be shared in parallel version
+		model_dir = os.path.join(base_dir, 'models')
+		player1_path = os.path.join(model_dir, player1)
+		player2_path = os.path.join(model_dir, player2)
+        
         self.player1 = Network(num_gpu)
         self.player1.load(player1_path)
 

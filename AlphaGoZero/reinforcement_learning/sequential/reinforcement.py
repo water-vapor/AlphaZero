@@ -74,10 +74,10 @@ def main():
 		rl_info['models'].append(new_model_name)
 		
 		# Evaluate the newly created model with the current best one
-		best_defeated = evaluate(rl_info['best'], new_model_name)
+		best_defeated = evaluate(rl_info['best'], new_model_name, base_dir=args.directory)
 		if best_defeated:
 			rl_info['best_model'] = new_model_name
-			rl_info['should_selfplay'] = True
+			rl_info['should_selfplay'] = True 
 
 if __name__ == '__main__':
     main()
