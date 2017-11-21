@@ -4,7 +4,7 @@ import os
 from AlphaGoZero.Network.main import Network
 from AlphaGoZero.Network.supervised import shuffled_hdf5_batch_generator
 from AlphaGoZero.preprocessing.game_converter import run_game_converter
-from AlphaGoZero.reinforcement_learning.sequential.util import get_current_time, combined_train_data_generator
+from AlphaGoZero.reinforcement_learning.sequential.util import get_current_time, combined_selfplay_train_data_generator
 
 
 def optimize(training_selfplays, model_to_optimize, base_dir='data', num_gpu=1, num_step=1000, num_batch=32):
