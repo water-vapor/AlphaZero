@@ -33,11 +33,11 @@ class Player:
             player_2.observe(move)
         :param nn_eval: NNEvaluator class.
         """
-        self.mcts = MCTS.MCTSearch(helper.random_state_transform, nn_eval)
+        self.mcts = MCTS.MCTSearch(helper.random_state_transform, nn_eval.eval)
 
     def think(self, state):
-        move = self.mcts.calc_move(state)
-        return move
+        move, probs = self.mcts.calc_move_with_probs(state)
+        return move, probs
 
     def ack(self, move):
         self.mcts.update_with_move(move)

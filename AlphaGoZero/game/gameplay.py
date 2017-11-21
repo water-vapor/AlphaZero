@@ -1,5 +1,8 @@
 import AlphaGoZero.game.player as player
 import AlphaGoZero.go as go
+import AlphaGoZero.preprocessing as preproc
+
+import numpy as np
 
 class Game:
 
@@ -12,8 +15,11 @@ class Game:
         self.player_1 = player.Player(nn_eval_1)
         self.player_2 = player.Player(nn_eval_2)
         self.state = go.GameState()
+        self.winner = None
+        self.state_history = []
+        self.probs_history = []
 
-    def __call__(self, *args, **kwargs):
+    def start(self):
         """
         Make the instance callable. Start playing.
         :param args:
@@ -22,20 +28,42 @@ class Game:
         """
         pass_1 = pass_2 = False
         while not (pass_1 and pass_2):
-            move = self.player_1.think(self.state)
+            print('black move')
+            move, probs = self.player_1.think(self.state)
             if move is go.PASS_MOVE:
                 pass_1 = True # TODO: check the type of variable move
+            self.state_history.append(self.state.copy())
+            self.probs_history.append(probs)
             self.state.do_move(move)
             self.player_1.ack(move)
             self.player_2.ack(move)
 
-            move = self.player_2.think(self.state)
+            print('white move')
+            move, probs = self.player_2.think(self.state)
             if move is go.PASS_MOVE:
                 pass_2 = True
+            self.state_history.append(self.state.copy())
+            self.probs_history.append(probs)
             self.state.do_move(move)
             self.player_1.ack(move)
             self.player_2.ack(move)
 
             # TODO: other end game condition
 
-        return self.state.get_winner()
+        self.winner = self.state.get_winner()
+        return self.winner
+
+    def get_history(self):
+        # TODO: whether to put the whole game history in one batch
+        state_np = np.zeros((len(self.state_history), 17, 19, 19))
+        probs_np = np.zeros((len(self.probs_history), 362))
+        result_np = np.zeros((len(self.probs_history)))
+        for i in range(len(self.probs_history)):
+            state_np[i] = preproc.Preprocess().state_to_tensor(self.state_history[i])[0]
+            for prob in self.probs_history[i]:
+                if prob[0] == go.PASS_MOVE:
+                    probs_np[i, 361] = prob[1]
+                else:
+                    probs_np[i, prob[0][0]*19+prob[0][1]] = prob[1]
+            result_np[i] = (i%2 == (self.winner!=go.BLACK))
+        return state_np, probs_np, result_np
