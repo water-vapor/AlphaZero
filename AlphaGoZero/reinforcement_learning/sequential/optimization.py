@@ -1,6 +1,7 @@
 import h5py as h5
 import numpy as np
 import os
+import numpy as np
 from AlphaGoZero.Network.main import Network
 from AlphaGoZero.Network.supervised import shuffled_hdf5_batch_generator
 from AlphaGoZero.preprocessing.game_converter import run_game_converter
@@ -37,7 +38,10 @@ def optimize(training_selfplays, model_to_optimize, base_dir='data', num_gpu=1, 
     model.load(model_path)
 	
     # TODO: learning rate annealing should be implemented at the network module
-    train_data_generator = shuffled_npy_batch_generator(state_dataset, probs_dataset, result_dataset, num_batch)
+	n_data = state_dataset.shape[0]
+	shuffle_indices = np.random.permutation(n_total_data)
+    indices = shuffle_indices[0:n_total_data]
+    train_data_generator = shuffled_npy_batch_generator(state_dataset, probs_dataset, result_dataset, indices, num_batch)
 	
     for step, batch in enumerate(train_data_generator):
         model.update(batch)
