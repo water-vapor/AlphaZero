@@ -69,7 +69,7 @@ class Network(object):
 
         feed_dict = {}
         batch = len(data[0].shape[0])
-        piece = batch / self.num_gpu
+        piece = batch // self.num_gpu
         for idx, model in enumerate(self.models):
             start_idx = idx * piece
             end_idx = (idx + 1) * piece
@@ -106,6 +106,35 @@ class Network(object):
             feed_dict[model.is_train] = False
         R_p, R_v = self.sess.run([self.R_p, self.R_v], feed_dict=feed_dict)
         return R_p, R_v
+
+    def evaluate(self, data):
+        '''
+        Calculate loss and result based on supervised data.
+
+        Input: (state, action, result)
+               state: numpy array of shape [None, 17, 19, 19]
+               action: numpy array of shape [None, 362]
+               result: numpy array of shape [None]
+        Return: (loss, R_p, R_v)
+                loss: average loss of the batch
+                R_p: probability distribution of action, numpy array of shape [None, 362]
+                R_v: expected value of current state, numpy array of shape [None]
+        '''
+        feed_dict = {}
+        batch = len(data[0].shape[0])
+        piece = batch // self.num_gpu
+        for idx, model in enumerate(self.models):
+            start_idx = idx * piece
+            end_idx = (idx + 1) * piece
+            if idx == self.num_gpu - 1:
+                end_idx = batch
+            feed_dict[model.x] = data[0][start_idx: end_idx]
+            feed_dict[model.p] = data[1][start_idx: end_idx]
+            feed_dict[model.v] = data[2][start_idx: end_idx]
+            feed_dict[model.is_train] = False
+        loss, R_p, R_v = self.sess.run(
+            [self.loss, self.R_p, self.R_v], feed_dict=feed_dict)
+        return loss, R_p, R_v
 
     def get_global_step(self):
         return self.sess.run(self.models[0].global_step)

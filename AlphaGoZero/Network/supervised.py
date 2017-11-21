@@ -1,38 +1,49 @@
 import argparse
 import h5py as h5
 import numpy as np
+import tensorflow as tf
+import random
 
 from AlphaGoZero.preprocessing.preprocessing import Preprocess
 from AlphaGoZero.Network.main import Network
 
 
-def one_hot_action(action, size=19):
-    """Convert an (x,y) action into a size x size array of zeros with a 1 at x,y
-    """
-    categorical = np.zeros((size, size))
-    categorical[action] = 1
-    return categorical
-
-
 def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
-                                  indices, batch_size):
-    """A generator of batches of training data for use with the fit_generator function
-    of Keras. Data is accessed in the order of the given indices for shuffling.
+                                  indices, batch_size, inexhaust=False, shuffle=True):
+    """A generator of shuffled batches of training data. Note that the indices will
+       be automatically repeated and the generator will never stop
     """
+    def convert_action(action, size=19):
+        """Convert an action to a numpy array of shape (size * size + 1)
+        """
+        out_dim = size * size + 1
+        if len(action) == out_dim:
+            return np.asarray(action, dtype=np.float32)
+        x, y = tuple(action)
+        categorical = np.zeros(out_dim, dtype=np.float32)
+        categorical[int(size * x + y)] = 1
+        return categorical
+
+    def idx_gen(indices):
+        yield np.random.choice(indices)
+
+    if shuffle:
+        random.shuffle(indices)
+    gen = idx_gen(indices) if inexhaust else indices
     state_batch_shape = (batch_size,) + state_dataset.shape[1:]
     game_size = state_batch_shape[-1]
-    Xbatch = np.zeros(state_batch_shape)
-    Ybatch = np.zeros((batch_size, game_size * game_size))
-    Zbatch = np.zeros(batch_size)
+    Xbatch = np.zeros(state_batch_shape, dtype=np.float32)
+    Ybatch = np.zeros(
+        (batch_size, game_size * game_size + 1), dtype=np.float32)
+    Zbatch = np.zeros(batch_size, dtype=np.float32)
     batch_idx = 0
     while True:
-        for data_idx in indices:
+        for data_idx in gen:
             state = np.array([plane for plane in state_dataset[data_idx]])
-            action_xy = tuple(action_dataset[data_idx])
-            action = one_hot_action(action_xy, game_size)
+            action = convert_action(action_dataset[data_idx], game_size)
             result = result_dataset[data_idx]
             Xbatch[batch_idx] = state
-            Ybatch[batch_idx] = action.flatten()
+            Ybatch[batch_idx] = action
             Zbatch[batch_idx] = result
             batch_idx += 1
             if batch_idx == batch_size:
@@ -40,20 +51,27 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
                 yield (Xbatch, Ybatch, Zbatch)
 
 
-def evaluate(network, data_generator, max_batch=None):
+def evaluate(network, data_generator, tag="train", max_batch=None):
     accuracies = []
     mses = []
     for num, batch in enumerate(data_generator):
-        state, action, value = batch
-        R_p, R_v = network.response([state])
+        state, action, result = batch
+        loss, R_p, R_v = network.evaluate((state, action, result,))
         mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
         accuracies.append(np.mean(mask.astype(np.float32)))
-        mses.append(np.mean(np.square(R_v - value)))
+        mses.append(np.mean(np.square(R_v - result)))
         if max_batch and num > max_batch:
             break
     accuracy = np.mean(accuracies)
     mse = np.mean(mses)
-    return accuracy, mse
+    loss_sum = tf.Summary(value=[tf.Summary.Value(
+        tag="{}/loss".format(tag), simple_value=loss), ])
+    acc_sum = tf.Summary(value=[tf.Summary.Value(
+        tag="{}/acc".format(tag), simple_value=accuracy), ])
+    mse_sum = tf.Summary(value=[tf.Summary.Value(
+        tag="{}/mse".format(tag), simple_value=mse), ])
+    summary = [loss_sum, acc_sum, mse_sum]
+    return loss, accuracy, mse, summary
 
 
 def run_training(cmd_line_args=None):
@@ -69,13 +87,17 @@ def run_training(cmd_line_args=None):
     parser.add_argument(
         "--epochs", "-E", help="Total number of iterations on the data. Default: 10", type=int, default=10)
     parser.add_argument(
+        "--log_iter", help="Number of steps to record training loss", type=int, default=100)
+    parser.add_argument(
         "--checkpoint", "-C", help="Number of steps before each evaluation", type=int, default=3000)
-    parser.add_argument("--epoch-length", "-l",
-                        help="Number of training examples considered 'one epoch'. Default: # training data", type=int, default=None)
+    parser.add_argument(
+        "--num_batches", help="Number of batches to evaluate the network", type=int, default=300)
     parser.add_argument("--verbose", "-v", help="Turn on verbose mode",
                         default=False, action="store_true")
     parser.add_argument("--train-val-test", help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
                         nargs=3, type=float, default=[0.93, .05, .02])
+    parser.add_argument(
+        "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="./log")
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -125,33 +147,56 @@ def run_training(cmd_line_args=None):
     if args.verbose:
         print("STARTING TRAINING")
 
+    shuffle_indices = np.random.permutation(n_total_data)
+    train_indices = shuffle_indices[0:n_train_data]
+    eval_indices = shuffle_indices[0: n_train_data]
+    val_indices = shuffle_indices[n_train_data:n_train_data + n_val_data]
     model = Network(args.num_gpu)
+    writer = tf.summary.FileWriter(args.log_dir)
     for epoch in range(args.epochs):
-        shuffle_indices = np.random.permutation(n_total_data)
-        train_indices = shuffle_indices[0:n_train_data]
-        val_indices = shuffle_indices[n_train_data:n_train_data + n_val_data]
         train_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],
             dataset["actions"],
             dataset["results"],
             train_indices,
             args.minibatch)
-        for step, batch in enumerate(train_data_generator):
-            model.update(batch)
-            if (step + 1) % args.checkpoint == 0:
+        val_data_generator = shuffled_hdf5_batch_generator(
+            dataset["states"],
+            dataset["actions"],
+            dataset["results"],
+            val_indices,
+            args.minibatch,
+            inexhaust=True)
+        eval_data_generator = shuffled_hdf5_batch_generator(
+            dataset["states"],
+            dataset["actions"],
+            dataset["results"],
+            eval_indices,
+            args.minibatch,
+            inexhaust=True)
+        if args.verbose:
+            print("Epoch: {}".format(epoch))
+        for batch in train_data_generator:
+            global_step = model.get_global_step() + 1
+            loss = model.update(batch)
+            if global_step % args.log_iter == 0:
+                loss_sum = tf.Summary(value=[tf.Summary.Value(
+                    tag="model/loss", simple_value=loss), ])
+                writer.add_summary(loss_sum, global_step)
+            if (global_step + 1) % args.checkpoint == 0:
                 if args.verbose:
-                    print("Evaluation at step {}".format(step))
-                val_data_generator = shuffled_hdf5_batch_generator(
-                    dataset["states"],
-                    dataset["actions"],
-                    dataset["results"],
-                    val_indices,
-                    args.minibatch)
-                accuracy, mse = evaluate(model, val_data_generator)
-                del val_data_generator
-                if args.verbose:
-                    print("Accuracy: {}, MSE: {}".format(accuracy, mse))
+                    print("Evaluation at step {}".format(global_step))
+                val_loss, val_accuracy, val_mse, val_sum = evaluate(
+                    model, val_data_generator, tag="val", max_batch=args.num_batches)
+                eval_loss, eval_accuracy, eval_mse, eval_sum = evaluate(
+                    model, eval_data_generator, tag="train", max_batch=args.num_batches)
+                for summ in val_sum + eval_sum:
+                    writer.add_summary(summ, global_step)
+                writer.flush()
+
         del train_data_generator
+        del val_data_generator
+        del eval_data_generator
 
 
 if __name__ == '__main__':

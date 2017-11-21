@@ -32,7 +32,8 @@ class Model(object):
     def _build_forward(self):
         config = self.config
         _activation = tf.nn.relu
-        regularizer = tf.contrib.layers.l2_regularizer(scale=float(self.config["l2"]))
+        regularizer = tf.contrib.layers.l2_regularizer(
+            scale=float(self.config["l2"]))
 
         inputs = tf.transpose(self.x, [0, 2, 3, 1])
         W0 = tf.get_variable(
@@ -40,8 +41,8 @@ class Model(object):
         R = tf.nn.conv2d(inputs, W0, strides=[1, 1, 1, 1], padding='SAME')
         R = _activation(batch_norm(R, config, self.is_train))
 
-        for i in range(config["num_blocks"]):
-            with tf.variable_scope("resblock_{}".format(i)):
+        for layer in range(config["num_blocks"]):
+            with tf.variable_scope("resblock_{}".format(layer)):
                 W1 = tf.get_variable(
                     "W1", [3, 3, 256, 256], regularizer=regularizer)
                 W2 = tf.get_variable(
