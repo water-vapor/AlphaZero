@@ -4,7 +4,7 @@ import os
 from AlphaGoZero.Network.main import Network
 from AlphaGoZero.Network.supervised import shuffled_hdf5_batch_generator
 from AlphaGoZero.preprocessing.game_converter import run_game_converter
-from AlphaGoZero.reinforcement_learning.sequential.util import get_current_time, combined_selfplay_train_data_generator
+from AlphaGoZero.reinforcement_learning.sequential.util import get_current_time, shuffled_npy_batch_generator
 
 
 def optimize(training_selfplays, model_to_optimize, base_dir='data', num_gpu=1, num_step=1000, num_batch=32):
@@ -18,9 +18,18 @@ def optimize(training_selfplays, model_to_optimize, base_dir='data', num_gpu=1, 
             num_step: number of steps in optimization
             num_batch: batch size per worker
     """
-	# Load training data from h5 files
-	training_h5_paths = [os.path.join(base_dir, 'selfplay', model_name, 'train.h5') for model_name in training_selfplays]
-	h5_files = [h5.File(h5_path) for h5_path in training_h5_paths]
+	# Load training data from npy files
+	training_data_paths = [os.path.join(base_dir, 'selfplay', model_name, 'train.npy') for model_name in training_selfplays]
+	state_dataset = np.zeros((0,17,19,19))
+	probs_dataset = np.zeros((0,362))
+	result_dataset = np.zeros((0))
+	for training_data_file in training_data_paths:
+		with open(training_data_file) as f:
+			training_data = np.load(f)
+		state_np, probs_np, result_np = training_data[0], training_data[1], training_data[2]
+		state_dataset = np.concatenate([state_dataset, state_np])
+		probs_dataset = np.concatenate([probs_dataset, probs_np])
+		result_dataset = np.concatenate([result_dataset, result_np])
 	
 	# Load the model to optimize
     model = Network(num_gpu)
@@ -28,8 +37,7 @@ def optimize(training_selfplays, model_to_optimize, base_dir='data', num_gpu=1, 
     model.load(model_path)
 	
     # TODO: learning rate annealing should be implemented at the network module
-	# The generator takes a list of h5 file data instead of one
-    train_data_generator = combined_train_data_generator(h5_files, num_batch)
+    train_data_generator = shuffled_npy_batch_generator(state_dataset, probs_dataset, result_dataset, num_batch)
 	
     for step, batch in enumerate(train_data_generator):
         model.update(batch)
