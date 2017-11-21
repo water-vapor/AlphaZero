@@ -1,4 +1,4 @@
-import tensorflow as tf
+import os
 import numpy as np
 import yaml
 
@@ -9,6 +9,8 @@ from AlphaGoZero.Network.util import average_gradients
 class Network(object):
 
     def __init__(self, num_gpu=1, config_file="Network/reinforce.yaml"):
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+        import tensorflow as tf
         with open(config_file) as fh:
             self.config = yaml.load(fh)
         self.num_gpu = num_gpu
@@ -93,8 +95,8 @@ class Network(object):
                 R_v: expected value of current state, numpy array of shape [None]
         '''
         feed_dict = {}
-        batch = len(data[0].shape[0])
-        piece = batch / self.num_gpu
+        batch = data[0].shape[0]
+        piece = batch // self.num_gpu
         for idx, model in enumerate(self.models):
             start_idx = idx * piece
             end_idx = (idx + 1) * piece

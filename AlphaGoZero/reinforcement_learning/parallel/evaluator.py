@@ -13,9 +13,10 @@ def kill_children():
 
 class Evaluator:
 
-    def __init__(self, nn_eval_new, nn_eval_best, r_conn, s_conn, num_games=400):
+    def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, num_games=400):
+        print('create evaluator')
         self.num_games = num_games
-        self.nn_eval_new = nn_eval_new
+        self.nn_eval_chal = nn_eval_chal
         self.nn_eval_best = nn_eval_best
         atexit.register(kill_children)
         self.proc = mp.Process(target=self.run)
@@ -24,11 +25,15 @@ class Evaluator:
         self.counter_lock = mp.Lock()
         self.win_counter = 0
 
+        self.worker_lim = mp.Semaphore(mp.cpu_count()) # TODO: worker number
+
     def __enter__(self):
+        print('evaluator: start proc')
         self.proc.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        print('evaluator: terminate proc')
         self.proc.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
 
@@ -39,33 +44,39 @@ class Evaluator:
 
     def eval_wrapper(self, color_of_new):
         # This block of code serves as a gate. This thread will not block updater but updater can block this thread
-        self.nn_eval_new.loading.acquire()            # nn_eval_new is not loading
+        self.nn_eval_chal.loading.acquire()            # nn_eval_new is not loading
         self.nn_eval_best.loading.acquire()           # nn_eval_best is not loading
         self.nn_eval_best.loading.release()           # release lock
-        self.nn_eval_new.loading.release()            # release lock
+        self.nn_eval_chal.loading.release()            # release lock
 
-        self.nn_eval_new.active_game.acquire(False)   # decrement counter of nn_eval_new
+        self.nn_eval_chal.active_game.acquire(False)   # decrement counter of nn_eval_new
         self.nn_eval_best.active_game.acquire(False)  # decrement counter of nn_eval_best
 
-        winner = gameplay.Game(self.nn_eval_new, self.nn_eval_best)() if color_of_new == go.BLACK else gameplay.Game(self.nn_eval_best, self.nn_eval_new)()
+        game = gameplay.Game(self.nn_eval_chal, self.nn_eval_best) if color_of_new == go.BLACK else gameplay.Game(self.nn_eval_best, self.nn_eval_chal)
+        winner = game.start()
         if winner == color_of_new:
             self.count()
 
         self.nn_eval_best.active_game.release()       # increment counter
-        self.nn_eval_new.active_game.release()        # increment counter
+        self.nn_eval_chal.active_game.release()        # increment counter
+
+        self.worker_lim.release()
 
     def run(self):
+        print('evaluator: loop begin')
         while True:
             new_model_path = self.r_conn.recv()
             # update Network
-            self.nn_eval_new.load(new_model_path)
+            self.nn_eval_chal.load(new_model_path)
             self.win_counter = 0
             # open pool
             color_of_new_list = [go.BLACK, go.WHITE]*(self.num_games//2) + [go.BLACK]*(self.num_games%2)
-            mp.Pool(processes=4).map(self.eval_wrapper, color_of_new_list) # TODO: worker number
+            for c in color_of_new_list:
+                self.worker_lim.acquire()
+                mp.Process(target=self.eval_wrapper, args=(c,)).start()
             # wait
             if self.win_counter >= int(0.55 * self.num_games):
                 # save model
-                self.nn_eval_new.save('best_name') # TODO: use proper model name
+                self.nn_eval_chal.save('best_name') # TODO: use proper model name
                 # send path
                 self.s_conn.send('best_name')

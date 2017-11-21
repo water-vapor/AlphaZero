@@ -15,7 +15,7 @@ def linear(x, dim, bias, bias_start=0., scope="linear"):
             return res
         b = tf.get_variable(
             "b", [dim], initializer=tf.constant_initializer(bias_start))
-        return tf.bias_add(res, b)
+        return tf.nn.bias_add(res, b)
 
 
 def average_gradients(tower_grads):
