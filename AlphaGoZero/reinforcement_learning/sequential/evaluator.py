@@ -17,7 +17,7 @@ def evaluate(best_player, player_to_eval, base_dir='data', num_games=400, num_gp
     match = Match(best_player, player_eval, base_dir=base_dir)
     best_win = 0
     for num_game in range(num_games):
-        best_is_back, result = match.play(os.path.join(base_dir, 'evaluations'), str(num_game))
+        best_is_back, result = match.play(os.path.join(base_dir, 'evaluations', best_player + '_vs_' + player_to_eval), str(num_game))
         if (best_is_back and result is BLACK) or (not best_is_back and result is WHITE):
             best_win += 1
 
