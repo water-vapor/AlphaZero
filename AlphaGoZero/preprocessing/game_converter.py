@@ -16,9 +16,10 @@ class SizeMismatchError(Exception):
 
 class NoResultError(Exception):
     pass
-	
+
+
 class SearchProbsMismatchError(Exception):
-	pass
+    pass
 
 
 class GameConverter:
@@ -172,7 +173,7 @@ class GameConverter:
         # processing complete; rename tmp_file to hdf5_file
         h5f.close()
         os.rename(tmp_file, hdf5_file)
-		
+
     def selfplay_to_hdf5(self, sgf_pkl_files, hdf5_file, bd_size=19, ignore_errors=True, verbose=False):
         """Convert all files in the iterable sgf_files into an hdf5 group to be stored in hdf5_file
 
@@ -242,7 +243,7 @@ class GameConverter:
                 print("created HDF5 dataset in {}".format(tmp_file))
 
             next_idx = 0
-			pkl_idx = 0
+            pkl_idx = 0
             for file_name, pkl_name in sgf_pkl_files:
                 if verbose:
                     print(file_name, pkl_name)
@@ -253,30 +254,30 @@ class GameConverter:
                     for state, move, result in self.convert_game(file_name, bd_size):
                         if next_idx >= len(states):
                             states.resize((next_idx + 1, self.n_features, bd_size, bd_size))
-                            #actions.resize((next_idx + 1, 2))
+                            # actions.resize((next_idx + 1, 2))
                             results.resize((next_idx + 1, 1))
                         states[next_idx] = state
-                        #actions[next_idx] = move
+                        # actions[next_idx] = move
                         results[next_idx] = result
                         n_pairs += 1
                         next_idx += 1
-					with open(pkl_name, 'rb') as f:
-						search_probs_list = pickle.load(f)
-					for search_prob in search_probs_list:
-						search_probs.resize((pkl_idx + 1, bd_size * bd_size + 1))
-						prob_vector = np.zeros(bd_size * bd_size + 1)
-						for action, prob in search_prob:
-							if action is go.PASS_MOVE:
-								prob_idx = bd_size * bd_size
-							else:
-								move_x, move_y = action
-								prob_idx = bd_size * move_x + move_y
-							prob_vector[prob_idx] = prob
-						search_probs[pkl_idx] = prob_vector
-						pkl_idx += 1
-					if next_idx != pkl_idx:
-					raise SearchProbsMismatchError()
-					
+                    with open(pkl_name, 'rb') as f:
+                        search_probs_list = pickle.load(f)
+                    for search_prob in search_probs_list:
+                        search_probs.resize((pkl_idx + 1, bd_size * bd_size + 1))
+                        prob_vector = np.zeros(bd_size * bd_size + 1)
+                        for action, prob in search_prob:
+                            if action is go.PASS_MOVE:
+                                prob_idx = bd_size * bd_size
+                            else:
+                                move_x, move_y = action
+                                prob_idx = bd_size * move_x + move_y
+                            prob_vector[prob_idx] = prob
+                        search_probs[pkl_idx] = prob_vector
+                        pkl_idx += 1
+                    if next_idx != pkl_idx:
+                        raise SearchProbsMismatchError()
+
                 except go.IllegalMove:
                     warnings.warn("Illegal Move encountered in %s\n"
                                   "\tdropping the remainder of the game" % file_name)
@@ -286,8 +287,10 @@ class GameConverter:
                     warnings.warn("Skipping %s; wrong board size" % file_name)
                 except NoResultError:
                     warnings.warn("Skipping %s; no result or non-standard result" % file_name)
-				except SearchProbsMismatchError:
-					warnings.warn("Skipping %s; move numbers in sgf game record is inconsistant with that in search probs" % file_name)
+                except SearchProbsMismatchError:
+                    warnings.warn(
+                        "Skipping %s; move numbers in sgf game record is inconsistant with that in search probs"
+                        % file_name)
                 except Exception as e:
                     # catch everything else
                     if ignore_errors:
@@ -357,8 +360,8 @@ def run_game_converter(cmd_line_args=None):
     def _walk_all_sgfs(root):
         """a helper function/generator to get all SGF files in subdirectories of root
         """
-        for (dirpath, dirname, files) in os.walk(root):
-            for filename in files:
+        for (dirpath, dirname, _files) in os.walk(root):
+            for filename in _files:
                 if _is_sgf(filename):
                     # yield the full (relative) path to the file
                     yield os.path.join(dirpath, filename)
@@ -366,8 +369,8 @@ def run_game_converter(cmd_line_args=None):
     def _list_sgfs(path):
         """helper function to get all SGF files in a directory (does not recurse)
         """
-        files = os.listdir(path)
-        return (os.path.join(path, f) for f in files if _is_sgf(f))
+        _files = os.listdir(path)
+        return (os.path.join(path, f) for f in _files if _is_sgf(f))
 
     # get an iterator of SGF files according to command line args
     if args.directory:
