@@ -18,9 +18,9 @@ class Match(object):
                 player1: name of player 1
                 player2: name of player 2
         """
-		model_dir = os.path.join(base_dir, 'models')
-		player1_path = os.path.join(model_dir, player1)
-		player2_path = os.path.join(model_dir, player2)
+        model_dir = os.path.join(base_dir, 'models')
+        player1_path = os.path.join(model_dir, player1)
+        player2_path = os.path.join(model_dir, player2)
         
         self.player1 = Network(num_gpu)
         self.player1.load(player1_path)
