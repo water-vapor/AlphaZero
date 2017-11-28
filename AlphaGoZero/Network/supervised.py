@@ -3,6 +3,7 @@ import h5py as h5
 import numpy as np
 import tensorflow as tf
 import random
+import os
 
 from AlphaGoZero.preprocessing.preprocessing import Preprocess
 from AlphaGoZero.Network.main import Network
@@ -97,7 +98,7 @@ def run_training(cmd_line_args=None):
     parser.add_argument("--train-val-test", help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
                         nargs=3, type=float, default=[0.93, .05, .02])
     parser.add_argument(
-        "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="./log")
+        "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="log")
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -193,6 +194,7 @@ def run_training(cmd_line_args=None):
                 for summ in val_sum + eval_sum:
                     writer.add_summary(summ, global_step)
                 writer.flush()
+                model.save(os.join(model.config.save_dir, "model"))
 
         del train_data_generator
         del val_data_generator

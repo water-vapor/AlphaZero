@@ -8,7 +8,7 @@ from AlphaGoZero.Network.util import average_gradients
 
 class Network(object):
 
-    def __init__(self, num_gpu=1, config_file="Network/reinforce.yaml"):
+    def __init__(self, num_gpu=1, config_file="Network/reinforce.yaml", pretrained=False):
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
         import tensorflow as tf
         with open(config_file) as fh:
@@ -20,6 +20,9 @@ class Network(object):
         self.sess = tf.Session(config=sess_config)
         self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
+        if pretrained:
+            self.saver.restore(
+                self.sess, tf.train.latest_checkpoint(self.config.save_dir))
         self.lr = tf.placeholder(tf.float32, [], name="lr")
         self.opt = tf.train.MomentumOptimizer(
             self.lr, momentum=self.config["momentum"])
