@@ -5,11 +5,13 @@ import yaml
 from AlphaGoZero.Network.model import get_multi_models
 from AlphaGoZero.Network.util import average_gradients
 
+reinforce_config = os.path.join("AlphaGoZero", "Network", "reinforce.yaml")
+
 
 class Network(object):
 
-    def __init__(self, num_gpu=1, config_file="Network/reinforce.yaml", pretrained=False):
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+    def __init__(self, num_gpu=1, config_file=reinforce_config, pretrained=False):
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
         import tensorflow as tf
         with open(config_file) as fh:
             self.config = yaml.load(fh)
@@ -18,7 +20,6 @@ class Network(object):
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=sess_config)
-        self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
         if pretrained:
             self.saver.restore(
@@ -48,6 +49,7 @@ class Network(object):
             self.grad, global_step=self.models[0].global_step)
         self.R_p = tf.concat(p_list, axis=0)
         self.R_v = tf.concat(v_list, axis=0)
+        self.sess.run(tf.global_variables_initializer())
 
     def update(self, data):
         '''
@@ -63,7 +65,7 @@ class Network(object):
         global_step = self.get_global_step()
         if global_step % 1000 == 0:
             learning_scheme = self.config["learning_rate"]
-            divides = learning_scheme.keys().sort()
+            divides = sorted(list(learning_scheme))
             current = 0
             for element in divides:
                 if element < global_step:
@@ -71,7 +73,7 @@ class Network(object):
             self.learning_rate = learning_scheme[current]
 
         feed_dict = {}
-        batch = len(data[0].shape[0])
+        batch = data[0].shape[0]
         piece = batch // self.num_gpu
         for idx, model in enumerate(self.models):
             start_idx = idx * piece
@@ -124,7 +126,7 @@ class Network(object):
                 R_v: expected value of current state, numpy array of shape [None]
         '''
         feed_dict = {}
-        batch = len(data[0].shape[0])
+        batch = data[0].shape[0]
         piece = batch // self.num_gpu
         for idx, model in enumerate(self.models):
             start_idx = idx * piece
