@@ -16,6 +16,7 @@ class MCTreeNode(object):
         # W(s,a)
         self._total_action_val = 0
         # Q(s,a) need not to be stored, since Q(s,a) always equal to W(s,a)/N(s,a)
+        # But Q(s,a) should be initialized to zero.
         # self.mean_action_val = 0
         # P(s,a)
         self._prior_prob = prior_prob
@@ -61,7 +62,7 @@ class MCTreeNode(object):
         """ Implements PUCT Algorithm's formula for current node.
         """
         # U(s,a)=c_punt * P(s,a) * sqrt(Parent's N(s,a)) / (1 + N(s,a))
-        usa = c_punt * self._prior_prob * math.sqrt(self._parent.visit_cnt) / (1.0 + self._visit_cnt)
+        usa = c_punt * self._prior_prob * math.sqrt(self._parent.visit_count) / (1.0 + self._visit_cnt)
         # Q(s,a) + U(s,a)
         return self.get_mean_action_value() + usa
 
@@ -70,6 +71,8 @@ class MCTreeNode(object):
         """
         # TODO: Should this value be inverted with color?
         # If yes, the signature should be changed to (self, color)
+        if self._visit_cnt == 0:
+            return 0
         return self._total_action_val / self._visit_cnt
 
     def visit(self):

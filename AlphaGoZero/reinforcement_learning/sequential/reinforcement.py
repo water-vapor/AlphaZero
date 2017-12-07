@@ -77,5 +77,6 @@ def main():
                 rl_info['best_model'] = new_model_name
             rl_info['should_selfplay'] = True
 
-            if __name__ == '__main__':
-                main()
+
+if __name__ == '__main__':
+    main()
