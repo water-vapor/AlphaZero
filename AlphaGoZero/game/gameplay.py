@@ -1,6 +1,7 @@
 import AlphaGoZero.game.player as player
 import AlphaGoZero.go as go
 import AlphaGoZero.preprocessing as preproc
+from AlphaGoZero.reinforcement_learning.parallel.util import *
 
 import numpy as np
 
@@ -27,8 +28,9 @@ class Game:
         :return: Game winner. Definition is in go.py.
         """
         pass_1 = pass_2 = False
+        cnt = 0
         while not (pass_1 and pass_2):
-            print('black move')
+            printlog(str(cnt)+'-black')
             move, probs = self.player_1.think(self.state)
             if move is go.PASS_MOVE:
                 pass_1 = True # TODO: check the type of variable move
@@ -37,8 +39,9 @@ class Game:
             self.state.do_move(move)
             self.player_1.ack(move)
             self.player_2.ack(move)
+            cnt += 1
 
-            print('white move')
+            printlog(str(cnt)+'-white')
             move, probs = self.player_2.think(self.state)
             if move is go.PASS_MOVE:
                 pass_2 = True
@@ -67,3 +70,5 @@ class Game:
                     probs_np[i, prob[0][0]*19+prob[0][1]] = prob[1]
             result_np[i] = (i%2 == (self.winner!=go.BLACK))
         return state_np, probs_np, result_np
+
+    # TODO: save state to sgf

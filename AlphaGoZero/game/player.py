@@ -2,7 +2,7 @@ import AlphaGoZero.mcts as MCTS
 import AlphaGoZero.math_helper as helper
 
 def get_move_single(state, nn_eval):
-    mcts = MCTS.MCTSearch(helper.random_state_transform, nn_eval)
+    mcts = MCTS.MCTSearch(helper.random_state_transform, nn_eval.eval)
     move = mcts.calc_move(state)
     return move
 
@@ -36,6 +36,7 @@ class Player:
         self.mcts = MCTS.MCTSearch(helper.random_state_transform, nn_eval.eval)
 
     def think(self, state):
+        # TODO: add dirichlet noise for first 30 moves
         move, probs = self.mcts.calc_move_with_probs(state)
         return move, probs
 

@@ -6,6 +6,7 @@ import time
 
 import AlphaGoZero.go as go
 import AlphaGoZero.game.gameplay as gameplay
+from AlphaGoZero.reinforcement_learning.parallel.util import *
 
 def kill_children():
     for p in mp.active_children():
@@ -13,23 +14,23 @@ def kill_children():
 
 class Selfplay:
     def __init__(self, nn_eval, r_conn, data_queue):
-        print('create selfplay')
+        printlog('create selfplay')
         self.nn_eval = nn_eval
         self.r_conn = r_conn
         self.data_queue = data_queue
         atexit.register(kill_children)
-        self.proc = mp.Process(target=self.run)
-        self.listen_proc = mp.Process(target=self.listen_update)
+        self.proc = mp.Process(target=self.run, name='selfplay_game_launcher')
+        self.listen_proc = mp.Process(target=self.listen_update, name='selfplay_listener')
         self.worker_lim = mp.Semaphore(mp.cpu_count()) # TODO: worker number
 
     def __enter__(self):
-        print('selfplay: start proc')
+        printlog('selfplay: start proc')
         self.proc.start()
         self.listen_proc.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print('selfplay: terminate proc')
+        printlog('selfplay: terminate proc')
         self.proc.terminate()
         self.listen_proc.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
@@ -41,13 +42,14 @@ class Selfplay:
 
         self.nn_eval.active_game.acquire(False)
         # start game
-        print('selfplay game: begin')
+        printlog('begin')
         game = gameplay.Game(self.nn_eval, self.nn_eval)
         game.start()
-        print('selfplay game: end')
+        printlog('end')
         # get game history
         # convert
         data = game.get_history()
+        # TODO: random flip
         # put in queue
         self.data_queue.put(data)
         # process comm
@@ -56,13 +58,15 @@ class Selfplay:
         self.worker_lim.release()
 
     def run(self):
-        print('selfplay: create pool')
+        printlog('start')
+        cnt = 0
         while True:
             self.worker_lim.acquire()
-            mp.Process(target=self.selfplay_wrapper).start()
+            mp.Process(target=self.selfplay_wrapper, name='selfplay_game_'+str(cnt)).start()
+            cnt += 1
 
     def listen_update(self):
-        print('selfplay update: listening')
+        printlog('listening')
         while True:
             path = self.r_conn.recv()
             self.nn_eval.load(path)

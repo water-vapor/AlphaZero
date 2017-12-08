@@ -6,6 +6,7 @@ import AlphaGoZero.game.player as player
 import AlphaGoZero.game.nn_eval as nn_eval
 import AlphaGoZero.game.gameplay as gameplay
 import AlphaGoZero.go as go
+from AlphaGoZero.reinforcement_learning.parallel.util import *
 
 def kill_children():
     for p in mp.active_children():
@@ -14,12 +15,12 @@ def kill_children():
 class Evaluator:
 
     def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, num_games=400):
-        print('create evaluator')
+        printlog('create evaluator')
         self.num_games = num_games
         self.nn_eval_chal = nn_eval_chal
         self.nn_eval_best = nn_eval_best
         atexit.register(kill_children)
-        self.proc = mp.Process(target=self.run)
+        self.proc = mp.Process(target=self.run, name='evaluator')
         self.r_conn, self.s_conn = r_conn, s_conn
         self.wait_r = mp.Semaphore(0)
         self.counter_lock = mp.Lock()
@@ -28,12 +29,12 @@ class Evaluator:
         self.worker_lim = mp.Semaphore(mp.cpu_count()) # TODO: worker number
 
     def __enter__(self):
-        print('evaluator: start proc')
+        printlog('evaluator: start proc')
         self.proc.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print('evaluator: terminate proc')
+        printlog('evaluator: terminate proc')
         self.proc.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
 
@@ -63,7 +64,7 @@ class Evaluator:
         self.worker_lim.release()
 
     def run(self):
-        print('evaluator: loop begin')
+        printlog('loop begin')
         while True:
             new_model_path = self.r_conn.recv()
             # update Network

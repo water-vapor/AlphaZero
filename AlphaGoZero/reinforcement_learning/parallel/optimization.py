@@ -6,6 +6,7 @@ import AlphaGoZero.game.player as player
 import AlphaGoZero.game.nn_eval as nn_eval
 import AlphaGoZero.game.gameplay as gameplay
 import AlphaGoZero.go as go
+from AlphaGoZero.reinforcement_learning.parallel.util import *
 
 def kill_children():
     for p in mp.active_children():
@@ -13,7 +14,7 @@ def kill_children():
 
 class Optimizer:
     def __init__(self, net, s_conn, data_queue, **kwargs):
-        print('create optimizer')
+        printlog('create optimizer')
         self.net = net
         self.s_conn = s_conn
         self.data_queue = data_queue
@@ -31,7 +32,7 @@ class Optimizer:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def run(self):
-        print('optimizer: training loop begin')
+        printlog('optimizer: training loop begin')
         for step in range(self.num_steps):
             data = self.data_queue.get()
             self.net.update(data)
