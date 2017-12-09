@@ -21,7 +21,7 @@ class Selfplay:
         atexit.register(kill_children)
         self.proc = mp.Process(target=self.run, name='selfplay_game_launcher')
         self.listen_proc = mp.Process(target=self.listen_update, name='selfplay_listener')
-        self.worker_lim = mp.Semaphore(mp.cpu_count()) # TODO: worker number
+        self.worker_lim = mp.Semaphore(2) # TODO: worker number
 
     def __enter__(self):
         printlog('selfplay: start proc')
@@ -37,15 +37,10 @@ class Selfplay:
 
     def selfplay_wrapper(self):
         # process comm
-        self.nn_eval.loading.acquire()
-        self.nn_eval.loading.release()
-
-        self.nn_eval.active_game.acquire(False)
+        self.nn_eval.rwlock.r_acquire()
         # start game
-        printlog('begin')
         game = gameplay.Game(self.nn_eval, self.nn_eval)
         game.start()
-        printlog('end')
         # get game history
         # convert
         data = game.get_history()
@@ -53,7 +48,7 @@ class Selfplay:
         # put in queue
         self.data_queue.put(data)
         # process comm
-        self.nn_eval.active_game.release()
+        self.nn_eval.rwlock.r_release()
 
         self.worker_lim.release()
 
@@ -69,4 +64,4 @@ class Selfplay:
         printlog('listening')
         while True:
             path = self.r_conn.recv()
-            self.nn_eval.load(path)
+            self.nn_eval.load('./model/ckpt-'+str(path))

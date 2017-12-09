@@ -14,7 +14,7 @@ def kill_children():
 
 class Evaluator:
 
-    def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, num_games=400):
+    def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, num_games=10):
         printlog('create evaluator')
         self.num_games = num_games
         self.nn_eval_chal = nn_eval_chal
@@ -23,10 +23,13 @@ class Evaluator:
         self.proc = mp.Process(target=self.run, name='evaluator')
         self.r_conn, self.s_conn = r_conn, s_conn
         self.wait_r = mp.Semaphore(0)
-        self.counter_lock = mp.Lock()
-        self.win_counter = 0
+        self.win_counter = mp.Value('i', 0)
 
-        self.worker_lim = mp.Semaphore(mp.cpu_count()) # TODO: worker number
+        self.num_worker = 2
+        self.worker_lim = mp.Semaphore(self.num_worker) # TODO: worker number
+
+        self.join_worker = mp.Semaphore(0)
+        self.finished_worker = mp.Value('i', 0)
 
     def __enter__(self):
         printlog('evaluator: start proc')
@@ -39,45 +42,45 @@ class Evaluator:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def count(self):
-        self.counter_lock.acquire()
-        self.win_counter += 1
-        self.counter_lock.release()
+        self.win_counter.value += 1
 
     def eval_wrapper(self, color_of_new):
-        # This block of code serves as a gate. This thread will not block updater but updater can block this thread
-        self.nn_eval_chal.loading.acquire()            # nn_eval_new is not loading
-        self.nn_eval_best.loading.acquire()           # nn_eval_best is not loading
-        self.nn_eval_best.loading.release()           # release lock
-        self.nn_eval_chal.loading.release()            # release lock
+        self.nn_eval_chal.rwlock.r_acquire()
+        self.nn_eval_best.rwlock.r_acquire()
 
-        self.nn_eval_chal.active_game.acquire(False)   # decrement counter of nn_eval_new
-        self.nn_eval_best.active_game.acquire(False)  # decrement counter of nn_eval_best
-
+        printlog('begin')
         game = gameplay.Game(self.nn_eval_chal, self.nn_eval_best) if color_of_new == go.BLACK else gameplay.Game(self.nn_eval_best, self.nn_eval_chal)
         winner = game.start()
         if winner == color_of_new:
             self.count()
-
-        self.nn_eval_best.active_game.release()       # increment counter
-        self.nn_eval_chal.active_game.release()        # increment counter
+        printlog('winner', winner)
 
         self.worker_lim.release()
+        self.finished_worker.value += 1
+        if self.finished_worker.value == self.num_games:
+            self.join_worker.release()
+
+        self.nn_eval_best.rwlock.r_release()       # increment counter
+        self.nn_eval_chal.rwlock.r_release()        # increment counter
 
     def run(self):
         printlog('loop begin')
         while True:
             new_model_path = self.r_conn.recv()
             # update Network
-            self.nn_eval_chal.load(new_model_path)
-            self.win_counter = 0
+            printlog('load network')
+            self.nn_eval_chal.load('./model/ckpt-' + str(new_model_path))
+            self.win_counter.value = 0
             # open pool
             color_of_new_list = [go.BLACK, go.WHITE]*(self.num_games//2) + [go.BLACK]*(self.num_games%2)
-            for c in color_of_new_list:
+            for i, c in enumerate(color_of_new_list):
                 self.worker_lim.acquire()
-                mp.Process(target=self.eval_wrapper, args=(c,)).start()
+                mp.Process(target=self.eval_wrapper, args=(c,), name='eval_game_'+str(i)).start()
             # wait
-            if self.win_counter >= int(0.55 * self.num_games):
+            self.join_worker.acquire()
+            printlog('win rate', self.win_counter.value/self.num_games)
+            if self.win_counter.value >= int(0.55 * self.num_games):
                 # save model
-                self.nn_eval_chal.save('best_name') # TODO: use proper model name
+                # self.nn_eval_chal.save('./model/best_name') # TODO: use proper model name
                 # send path
-                self.s_conn.send('best_name')
+                self.s_conn.send(new_model_path)

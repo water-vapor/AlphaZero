@@ -1,4 +1,6 @@
 import multiprocessing as mp
+import threading as thrd
+
 import atexit
 from queue import Empty as EmptyExc
 import traceback as tb
@@ -38,17 +40,15 @@ class NNEvaluator:
         """
         printlog('create nn_eval')
         self.max_batch_size = max_batch_size
-        self.queue = mp.Queue(max_batch_size)
         self.load_file = load_file
         self.net = None
         atexit.register(kill_children)  # kill all the children when the program exit
         self.listen_proc = mp.Process(target=self.listen, name=kwargs.get('name', 'nn_eval')+'_listener')
-        self.active_game = mp.Semaphore(0)
-        self.loading = mp.Lock()
 
-        self.conn_queue = mp.Queue(max_batch_size*2)
-        for i in range(max_batch_size*2):
-            self.conn_queue.put(mp.Pipe())
+        self.rwlock = RWLock()
+
+        self.rcpt = Reception(max_batch_size*2)
+        self.sl_rcpt = Reception(5)
 
     def __enter__(self):
         """Will be called where the "with" statement begin"""
@@ -69,29 +69,31 @@ class NNEvaluator:
         :return: (policy, value) pair
         """
         state_np = preproc.Preprocess().state_to_tensor(state) # TODO: check preprocessor
-        r_conn, s_conn = self.conn_queue.get()
-        req = _EvalReq(state_np, s_conn)
-        self.queue.put(req)
-        result_np = r_conn.recv()
-        self.conn_queue.put((r_conn, s_conn))
+        result_np = self.rcpt.req(state_np)
         result = ([], result_np[1])
         for i in range(361):
             result[0].append(( (i//19, i%19), result_np[0][i] ))
         result[0].append(( go.PASS_MOVE, result_np[0][361] ))
         return result
 
+    def sl_listen(self):
+        printlog_thrd('start')
+        while True:
+            (req_type, filename), s_conn = self.sl_rcpt.get()
+            if req_type == 'load':
+                self.rwlock.w_acquire()
+                self.net.load(filename)
+                self.rwlock.w_release()
+                s_conn.send('done')
+            elif req_type == 'save':
+                self.net.save(filename)
+                s_conn.send('done')
+
     def load(self, filename):
-        self.loading.acquire()      # loading lock
-
-        self.active_game.acquire()  # check whether there are active games
-        self.active_game.release()  # release semaphore
-
-        self.net.load(filename)
-
-        self.loading.release()      # release lock
+        self.sl_rcpt.req(('load', filename))
 
     def save(self, filename):
-        self.net.save(filename)
+        self.sl_rcpt.req(('save', filename))
 
     def listen(self):
         """
@@ -102,18 +104,21 @@ class NNEvaluator:
         self.net = network.Network(config_file="AlphaGoZero/Network/reinforce.yaml")
         if self.load_file is not None:
             self.net.load(self.load_file)
+
+        thrd.Thread(target=self.sl_listen, name='sl_listener').start()
+
         printlog('loop begin')
         while True:
             try:
                 reqs = []
                 for i in range(self.max_batch_size):
                     block = i==0
-                    reqs.append(self.queue.get(block))
+                    reqs.append(self.rcpt.get(block))
             except EmptyExc:
                 pass
             finally:
-                printlog(len(reqs), 'reqs')
-                states_np = np.concatenate([req.state_np for req in reqs], 0)
+                # printlog(len(reqs), 'reqs')
+                states_np = np.concatenate([req[0] for req in reqs], 0)
                 rp, rv = self.net.response((states_np,))
                 for i in range(len(reqs)):
-                    reqs[i].conn.send((rp[i], rv[i]))
+                    reqs[i][1].send((rp[i], rv[i]))

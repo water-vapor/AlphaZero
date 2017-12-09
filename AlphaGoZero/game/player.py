@@ -33,7 +33,7 @@ class Player:
             player_2.observe(move)
         :param nn_eval: NNEvaluator class.
         """
-        self.mcts = MCTS.MCTSearch(helper.random_state_transform, nn_eval.eval)
+        self.mcts = MCTS.MCTSearch(helper.random_state_transform, nn_eval.eval, max_playout=5)
 
     def think(self, state):
         # TODO: add dirichlet noise for first 30 moves
