@@ -22,7 +22,9 @@ def main():
     """
     parser = argparse.ArgumentParser(description='Reinforcement Learning trainer')
     parser.add_argument("--directory", "-d", help="Folder to store generated models and data", default='data')
-    parser.add_argument("--iteration", "-i", help="Number of steps to train the NN", default=100)
+    parser.add_argument("--optiter", "-o", help="Number of iterations to optimize the NN", default=100)
+    parser.add_argument("--selfplaynum", "-s", help="Number of games in selfplay to generate data", default=25000)
+    parser.add_argument("--evalnum", "-e", help="Number of games to play in evaluation", default=25000)
     args = parser.parse_args()
 
     # Check if there is data in the location
@@ -47,22 +49,26 @@ def main():
         rl_info = {'models': [], 'selfplay': [], 'should_selfplay': True}
 
         # Create the first random model
-        random_model = Network()
+        random_model = Network(config_file="AlphaGoZero/Network/reinforce.yaml")
         random_model_name = get_current_time()
         random_model.save(os.path.join(args.directory, 'models', random_model_name))
         # Since this is the only model, it is the best
         rl_info['models'].append(random_model_name)
         rl_info['best_model'] = random_model_name
 
+        # Save the new config
+        with open(os.path.join(args.directory, 'config.json'), "w+") as output:
+            json.dump(rl_info, output)
+
     # Evaluation folder is not important
     if not os.path.exists(os.path.join(args.directory, 'evaluations')):
         os.makedirs(os.path.join(args.directory, 'evaluations'))
 
     # Main Pipeline loop
-    for t in range(args.iteration):
+    for t in range(args.optiter):
         if rl_info['should_selfplay']:
             # Generate selfplay data and save to a h5 file
-            selfplay(rl_info['best_model'], base_dir=args.directory)
+            selfplay(rl_info['best_model'], base_dir=args.directory, num_games=args.selfplaynum)
             rl_info['selfplay'].append(rl_info['best_model'])
             rl_info['should_selfplay'] = False
 
@@ -72,10 +78,14 @@ def main():
             rl_info['models'].append(new_model_name)
 
             # Evaluate the newly created model with the current best one
-            best_defeated = evaluate(rl_info['best'], new_model_name, base_dir=args.directory)
+            best_defeated = evaluate(rl_info['best'], new_model_name, base_dir=args.directory, num_games=args.evalnum)
             if best_defeated:
                 rl_info['best_model'] = new_model_name
             rl_info['should_selfplay'] = True
+
+            # Update config
+            with open(os.path.join(args.directory, 'config.json'), "w+") as output:
+                json.dump(rl_info, output)
 
 
 if __name__ == '__main__':
