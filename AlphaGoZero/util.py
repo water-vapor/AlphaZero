@@ -92,7 +92,7 @@ def _sgf_init_gamestate(sgf_root):
         for stone in props['AW']:
             gs.place_handicap_stone(_parse_sgf_move(stone), go.WHITE)
     # setup done; set player according to 'PL' property
-    gs.set_current_player(go.BLACK if s_player == 'B' else go.WHITE)
+    gs.current_player = go.BLACK if s_player == 'B' else go.WHITE
     return gs
 
 
