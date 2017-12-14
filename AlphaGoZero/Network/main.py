@@ -10,13 +10,13 @@ reinforce_config = os.path.join("AlphaGoZero", "Network", "reinforce.yaml")
 
 class Network(object):
 
-    def __init__(self, num_gpu=1, config_file=reinforce_config, pretrained=False):
+    def __init__(self, num_gpu=1, config_file=reinforce_config, pretrained=False, mode="NHWC"):
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
         import tensorflow as tf
         with open(config_file) as fh:
             self.config = yaml.load(fh)
         self.num_gpu = num_gpu
-        self.models = get_multi_models(self.num_gpu, self.config)
+        self.models = get_multi_models(self.num_gpu, self.config, mode=mode)
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
         self.sess = tf.Session(config=sess_config)
