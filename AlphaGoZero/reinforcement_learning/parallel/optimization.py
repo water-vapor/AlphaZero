@@ -15,9 +15,11 @@ def kill_children():
         p.terminate()
 
 class Optimizer:
-    def __init__(self, net, s_conn, data_queue, **kwargs):
+    def __init__(self, cluster, job, s_conn, data_queue, **kwargs):
         printlog('create optimizer')
-        self.net = net
+        self.cluster = cluster
+        self.job = job
+        self.net = None
         self.s_conn = s_conn
         self.data_queue = data_queue
         self.num_ckpt = kwargs.get('num_ckpt', 100)
@@ -25,17 +27,19 @@ class Optimizer:
         self.batch_size = kwargs.get('batch_size', 8)
 
         atexit.register(kill_children)
-        # self.proc = mp.Process(target=self.data_recv, name='opti_data_recv')
+        self.proc = mp.Process(target=self.run, name='opti')
 
     def __enter__(self):
-        # self.proc.start()
+        self.proc.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        # self.proc.terminate()
+        self.proc.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def run(self):
+        self.net = network.Network(config_file="AlphaGoZero/Network/reinforce.yaml", cluster=self.cluster, job=self.job)
+
         self.data_queue.start_training.acquire()
         printlog('optimizer: training loop begin')
         for step in range(self.num_steps):
