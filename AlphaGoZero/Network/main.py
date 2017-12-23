@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import yaml
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
+import tensorflow as tf
 
 from AlphaGoZero.Network.model import get_multi_models
 from AlphaGoZero.Network.util import average_gradients
@@ -10,46 +12,51 @@ reinforce_config = os.path.join("AlphaGoZero", "Network", "reinforce.yaml")
 
 class Network(object):
 
-    def __init__(self, num_gpu=1, config_file=reinforce_config, pretrained=False, mode="NHWC"):
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
-        import tensorflow as tf
+    def __init__(self, num_gpu=1, config_file=reinforce_config, pretrained=False, mode="NHWC", cluster=None, job=None):
         with open(config_file) as fh:
             self.config = yaml.load(fh)
         self.num_gpu = num_gpu
-        self.models = get_multi_models(self.num_gpu, self.config, mode=mode)
+
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
-        self.sess = tf.Session(config=sess_config)
-        self.saver = tf.train.Saver()
+        server = tf.train.Server(cluster, job_name=job, task_index=0, config=sess_config)
+        self.sess = tf.Session(target=server.target)
+
+        with tf.device('/job:'+job+'/task:0'):
+            self.models = get_multi_models(self.num_gpu, self.config, mode=mode)
+            self.saver = tf.train.Saver()
+
+            self.lr = tf.placeholder(tf.float32, [], name="lr")
+            self.opt = tf.train.MomentumOptimizer(
+                self.lr, momentum=self.config["momentum"])
+
+            loss_list = []
+            grad_list = []
+            p_list = []
+            v_list = []
+            for idx, model in enumerate(self.models):
+                with tf.name_scope("grad_{}".format(idx)), tf.device("/GPU:{}".format(idx)):
+                    loss = model.get_loss()
+                    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                    with tf.control_dependencies(update_ops):
+                        grad = self.opt.compute_gradients(loss)
+                    loss_list.append(loss)
+                    grad_list.append(grad)
+                    p_list.append(model.R_p)
+                    v_list.append(model.R_v)
+
+            self.loss = tf.add_n(loss_list) / len(loss_list)
+            self.grad = average_gradients(grad_list)
+            self.train_op = self.opt.apply_gradients(
+                self.grad, global_step=self.models[0].global_step)
+            self.R_p = tf.concat(p_list, axis=0)
+            self.R_v = tf.concat(v_list, axis=0)
+
         if pretrained:
             self.saver.restore(
                 self.sess, tf.train.latest_checkpoint(self.config.save_dir))
-        self.lr = tf.placeholder(tf.float32, [], name="lr")
-        self.opt = tf.train.MomentumOptimizer(
-            self.lr, momentum=self.config["momentum"])
-
-        loss_list = []
-        grad_list = []
-        p_list = []
-        v_list = []
-        for idx, model in enumerate(self.models):
-            with tf.name_scope("grad_{}".format(idx)), tf.device("/GPU:{}".format(idx)):
-                loss = model.get_loss()
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-                with tf.control_dependencies(update_ops):
-                    grad = self.opt.compute_gradients(loss)
-                loss_list.append(loss)
-                grad_list.append(grad)
-                p_list.append(model.R_p)
-                v_list.append(model.R_v)
-
-        self.loss = tf.add_n(loss_list) / len(loss_list)
-        self.grad = average_gradients(grad_list)
-        self.train_op = self.opt.apply_gradients(
-            self.grad, global_step=self.models[0].global_step)
-        self.R_p = tf.concat(p_list, axis=0)
-        self.R_v = tf.concat(v_list, axis=0)
-        self.sess.run(tf.global_variables_initializer())
+        else:
+            self.sess.run(tf.global_variables_initializer())
 
     def update(self, data):
         '''

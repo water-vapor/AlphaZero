@@ -33,12 +33,14 @@ class NNEvaluator:
             pass
     """
 
-    def __init__(self, load_file=None, max_batch_size=32, **kwargs):  # TODO: use proper default value
+    def __init__(self, cluster, job, load_file=None, max_batch_size=32, **kwargs):  # TODO: use proper default value
         """
         :param net: Network class. This class doesn't create Network.
         :param max_batch_size: Int
         """
         printlog('create nn_eval')
+        self.cluster = cluster
+        self.job = job
         self.max_batch_size = max_batch_size
         self.load_file = load_file
         self.net = None
@@ -101,7 +103,7 @@ class NNEvaluator:
         listeners. They are NN to be evaluated and best NN so far.
         """
         printlog('create network')
-        self.net = network.Network(config_file="AlphaGoZero/Network/reinforce.yaml")
+        self.net = network.Network(config_file="AlphaGoZero/Network/reinforce.yaml", cluster=self.cluster, job=self.job)
         if self.load_file is not None:
             self.net.load(self.load_file)
 

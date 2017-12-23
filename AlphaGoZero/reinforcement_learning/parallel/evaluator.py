@@ -22,7 +22,6 @@ class Evaluator:
         atexit.register(kill_children)
         self.proc = mp.Process(target=self.run, name='evaluator')
         self.r_conn, self.s_conn = r_conn, s_conn
-        self.wait_r = mp.Semaphore(0)
         self.win_counter = mp.Value('i', 0)
 
         self.num_worker = 2
