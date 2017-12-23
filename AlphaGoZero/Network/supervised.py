@@ -3,8 +3,7 @@ import h5py as h5
 import numpy as np
 import tensorflow as tf
 import random
-
-from AlphaGoZero.preprocessing.preprocessing import Preprocess
+import os
 from AlphaGoZero.Network.main import Network
 
 
@@ -79,11 +78,12 @@ def run_training(cmd_line_args=None):
     """
     parser = argparse.ArgumentParser(
         description='Perform supervised training on a policy network.')
-    parser.add_argument("train_data", help="A .h5 file of training data")
+    parser.add_argument("-train_data", "-D",
+                        help="A .h5 file of training data")
     parser.add_argument(
-        "num_gpu", "-G", help="Number of GPU used for training. Default: 1", type=int, default=1)
+        "-num_gpu", "-G", help="Number of GPU used for training. Default: 1", type=int, default=1)
     parser.add_argument(
-        "--minibatch", "-B", help="Size of training data minibatches. Default: 16", type=int, default=16)
+        "--minibatch", "-B", help="Size of training data minibatches. Default: 8", type=int, default=8)
     parser.add_argument(
         "--epochs", "-E", help="Total number of iterations on the data. Default: 10", type=int, default=10)
     parser.add_argument(
@@ -97,42 +97,14 @@ def run_training(cmd_line_args=None):
     parser.add_argument("--train-val-test", help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
                         nargs=3, type=float, default=[0.93, .05, .02])
     parser.add_argument(
-        "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="./log")
+        "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="log")
 
     if cmd_line_args is None:
         args = parser.parse_args()
     else:
         args = parser.parse_args(cmd_line_args)
 
-    model_features = Preprocess.feature_list
     dataset = h5.File(args.train_data)
-
-    # Verify that dataset's features match the model's expected features.
-    if 'features' in dataset:
-        dataset_features = dataset['features'][()]
-        dataset_features = dataset_features.split(",")
-        if len(dataset_features) != len(model_features) or \
-           any(df != mf for (df, mf) in zip(dataset_features, model_features)):
-            raise ValueError("Model JSON file expects features \n\t%s\n"
-                             "But dataset contains \n\t%s" % ("\n\t".join(model_features),
-                                                              "\n\t".join(dataset_features)))
-        elif args.verbose:
-            print("Verified that dataset features and model features exactly match.")
-    else:
-        # Cannot check each feature, but can check number of planes.
-        n_dataset_planes = dataset["states"].shape[1]
-        tmp_preprocess = Preprocess(model_features)
-        n_model_planes = tmp_preprocess.output_dim
-        if n_dataset_planes != n_model_planes:
-            raise ValueError("Model JSON file expects a total of %d planes from features \n\t%s\n"
-                             "But dataset contains %d planes" % (n_model_planes,
-                                                                 "\n\t".join(
-                                                                     model_features),
-                                                                 n_dataset_planes))
-        elif args.verbose:
-            print("Verified agreement of number of model and dataset feature planes, but cannot "
-                  "verify exact match using old dataset format.")
-
     n_total_data = len(dataset["states"])
     n_train_data = int(args.train_val_test[0] * n_total_data)
     n_train_data = n_train_data - (n_train_data % args.minibatch)
@@ -145,6 +117,7 @@ def run_training(cmd_line_args=None):
         print("\t%d validaion samples" % n_val_data)
 
     if args.verbose:
+        from tqdm import tqdm
         print("STARTING TRAINING")
 
     shuffle_indices = np.random.permutation(n_total_data)
@@ -153,6 +126,7 @@ def run_training(cmd_line_args=None):
     val_indices = shuffle_indices[n_train_data:n_train_data + n_val_data]
     model = Network(args.num_gpu)
     writer = tf.summary.FileWriter(args.log_dir)
+    total_batches = (len(train_indices) + args.minibatch - 1) // args.minibatch
     for epoch in range(args.epochs):
         train_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],
@@ -176,6 +150,8 @@ def run_training(cmd_line_args=None):
             inexhaust=True)
         if args.verbose:
             print("Epoch: {}".format(epoch))
+            train_data_generator = tqdm(
+                train_data_generator, total=total_batches)
         for batch in train_data_generator:
             global_step = model.get_global_step() + 1
             loss = model.update(batch)
@@ -193,6 +169,7 @@ def run_training(cmd_line_args=None):
                 for summ in val_sum + eval_sum:
                     writer.add_summary(summ, global_step)
                 writer.flush()
+                model.save(os.join(model.config.save_dir, "model"))
 
         del train_data_generator
         del val_data_generator

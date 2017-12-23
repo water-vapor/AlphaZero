@@ -1,7 +1,7 @@
 import os
 import random
 import numpy as np
-from AlphaGoZero.game.nn_eval import NNEvaluator
+from AlphaGoZero.reinforcement_learning.sequential.nn_eval_seq import NNEvaluator
 from AlphaGoZero.game.gameplay import Game
 from AlphaGoZero.go import BLACK, WHITE
 

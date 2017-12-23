@@ -9,3 +9,4 @@ learning_rate:                  # learning rate scheme
 momentum: 0.9                   # momentum of MomentumOptimizer
 l2: 1e-4                        # weight decay factor
 MSE_scaling: 0.01               # MSE rescaling factor
+save_dir: pretrained

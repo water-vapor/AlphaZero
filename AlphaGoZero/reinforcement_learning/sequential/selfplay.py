@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from AlphaGoZero.game.nn_eval import NNEvaluator
+from AlphaGoZero.reinforcement_learning.sequential.nn_eval_seq import NNEvaluator
 from AlphaGoZero.game.gameplay import Game
 
 
@@ -19,14 +19,15 @@ def selfplay(best_player_name, base_dir='data', num_games=25000):
 
     """
     best_player = NNEvaluator(os.path.join(base_dir, 'models', best_player_name))
+
     # This can be parallelized
-    match = Game(best_player, best_player)
     state_dataset = np.zeros((0, 17, 19, 19))
     probs_dataset = np.zeros((0, 362))
     result_dataset = np.zeros(0)
 
     for num_game in range(num_games):
         # TODO: indicate this is a selfplay, not yet implemented in gameplay.Game
+        match = Game(best_player, best_player)
         result = match.start()
         state_np, probs_np, result_np = match.get_history()
         state_dataset = np.concatenate([state_dataset, state_np])
