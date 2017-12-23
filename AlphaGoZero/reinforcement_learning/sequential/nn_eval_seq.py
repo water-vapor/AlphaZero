@@ -1,6 +1,7 @@
 from AlphaGoZero.preprocessing.preprocessing import Preprocess
 from AlphaGoZero.Network.main import Network
 import AlphaGoZero.go as go
+import tensorflow as tf
 
 
 class NNEvaluator:
@@ -8,9 +9,10 @@ class NNEvaluator:
     It is implemented because the parallel version does not work with single threaded evaluation yet.
     """
 
-    def __init__(self, model_path=None, max_batch_size=32):
+    def __init__(self, model_path=None, max_batch_size=32, name='default'):
         self.max_batch_size = max_batch_size
-        self.net = Network()
+        with tf.variable_scope(name):
+            self.net = Network(config_file="AlphaGoZero/Network/reinforce.yaml")
         if model_path is not None:
             self.net.load(model_path + '-0')
 

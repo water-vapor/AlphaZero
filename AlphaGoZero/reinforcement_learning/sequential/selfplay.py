@@ -18,7 +18,8 @@ def selfplay(best_player_name, base_dir='data', num_games=25000):
         None
 
     """
-    best_player = NNEvaluator(os.path.join(base_dir, 'models', best_player_name))
+    best_player = NNEvaluator(os.path.join(base_dir, 'models', best_player_name), name='best')
+
 
     # This can be parallelized
     state_dataset = np.zeros((0, 17, 19, 19))

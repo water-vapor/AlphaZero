@@ -35,9 +35,10 @@ class Network(object):
         for idx, model in enumerate(self.models):
             with tf.name_scope("grad_{}".format(idx)), tf.device("/GPU:{}".format(idx)):
                 loss = model.get_loss()
-                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+                update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope=tf.get_variable_scope().name)
                 with tf.control_dependencies(update_ops):
-                    grad = self.opt.compute_gradients(loss)
+                    trainable_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope=tf.get_variable_scope().name)
+                    grad = self.opt.compute_gradients(loss, var_list=trainable_vars)
                 loss_list.append(loss)
                 grad_list.append(grad)
                 p_list.append(model.R_p)
