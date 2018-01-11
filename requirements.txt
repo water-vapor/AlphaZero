@@ -1,4 +1,7 @@
+numpy
+yaml
+tqdm
 h5py
 sgf
-numpy>=1.13.1
-tensorflow>=1.3.0
+tensorflow>=1.4.0; sys_platform=='darwin'
+tensorflow-gpu>=1.4.0; sys_platform=='win32'

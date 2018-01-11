@@ -68,7 +68,7 @@ def bdhistory_to_boards(processor, gs):
 
 
 class TestPreprocessingFeatures(unittest.TestCase):
-    """Test the functions in preprocessing.py
+    """Test the functions in processing.py
 
     note that the hand-coded features look backwards from what is depicted
     in simple_board() because of the x/y column/row transpose thing (i.e.
