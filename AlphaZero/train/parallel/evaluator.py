@@ -31,7 +31,7 @@ class Evaluator:
         self.join_worker = mp.Semaphore(0)
         self.finished_worker = mp.Value('i', 0)
 
-        self._game_config = game_config
+        self.game_config = game_config
         self._game_env = importlib.import_module(game_config['env_path'])
         self._gameplay = importlib.import_module(game_config['gameplay_path'])
 
@@ -75,7 +75,7 @@ class Evaluator:
             new_model_path = self.r_conn.recv()
             # update Network
             printlog('load network')
-            self.nn_eval_chal.load('./model/ckpt-' + str(new_model_path))
+            self.nn_eval_chal.load('./' + self.game_config['name'] + '_model/ckpt-' + str(new_model_path))
             self.win_counter.value = 0
             # open pool
             color_of_new_list = [self._game_env.BLACK, self._game_env.WHITE] * (self.num_games // 2) + [self._game_env.BLACK] * (self.num_games % 2)

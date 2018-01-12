@@ -2,7 +2,7 @@ import os
 import random
 import numpy as np
 from AlphaZero.train.sequential.nn_eval_seq import NNEvaluator
-from AlphaZero.game.go.gameplay import Game
+from AlphaZero.game.gameplay_go import Game
 from AlphaZero.env.go import BLACK, WHITE
 
 

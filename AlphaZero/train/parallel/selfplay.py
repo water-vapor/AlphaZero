@@ -58,11 +58,11 @@ class Selfplay:
         cnt = 0
         while True:
             self.worker_lim.acquire()
-            mp.Process(target=self.selfplay_wrapper, name='selfplay_game_' + str(cnt)).start()
+            mp.Process(target=self.selfplay_wrapper, name=self.game_config['name'] + '_selfplay_game_' + str(cnt)).start()
             cnt += 1
 
     def listen_update(self):
         printlog('listening')
         while True:
             path = self.r_conn.recv()
-            self.nn_eval.load('./model/ckpt-' + str(path))
+            self.nn_eval.load('./' + self.game_config['name'] + '_model/ckpt-' + str(path))

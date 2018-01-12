@@ -26,7 +26,7 @@ class Optimizer:
         atexit.register(kill_children)
         self.proc = mp.Process(target=self.run, name='opti')
 
-        self._game_config = game_config
+        self.game_config = game_config
 
     def __enter__(self):
         self.proc.start()
@@ -37,7 +37,7 @@ class Optimizer:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def run(self):
-        self.net = network.Network(self._game_config, config_file="AlphaZero/network/reinforce.yaml", cluster=self.cluster, job=self.job)
+        self.net = network.Network(self.game_config, config_file="AlphaZero/network/reinforce.yaml", cluster=self.cluster, job=self.job)
 
         self.data_queue.start_training.acquire()
         printlog('optimizer: training loop begin')
@@ -47,7 +47,7 @@ class Optimizer:
             if step % 30 == 0:
                 printlog('update iter', step)
             if (step + 1) % self.num_ckpt == 0:
-                self.net.save('./model/ckpt')  # TODO: use proper model name
+                self.net.save('./' + self.game_config['name'] + '_model/ckpt')  # TODO: use proper model name
                 self.s_conn.send(step + 1)
 
 

@@ -1,19 +1,19 @@
 # Metainfo
-name: go
-env_path: AlphaZero.env.go
-game_converter_path: AlphaZero.processing.go.game_converter
-state_converter_path: AlphaZero.processing.go.state_converter
-gameplay_path: AlphaZero.game.gameplay_go
+name: gomoku
+env_path: AlphaZero.env.gomoku
+game_converter_path: AlphaZero.processing.gomoku.game_converter
+state_converter_path: AlphaZero.processing.gomoku.state_converter
+gameplay_path: AlphaZero.game.gameplay_gomoku
 
 # Feature parameters for NN input and output
-board_width: 19
-board_height: 19
+board_width: 15
+board_height: 15
 history_step: 8
 planes_per_step: 2      # Two binary board for each player's stones
 additional_planes: 1    # If black is to play
 
 output_plane: 1
-flat_move_output: 362
+flat_move_output: 225
 
 
 # alpha and epsilon in Dirichlet noise
