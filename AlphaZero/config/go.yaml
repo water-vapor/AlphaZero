@@ -2,8 +2,8 @@
 name: go
 env_path: AlphaZero.env.go
 game_converter_path: AlphaZero.processing.go.game_converter
-state_converter_path: AlphaZero.processing.go.state_converter
-gameplay_path: AlphaZero.game.gameplay_go
+state_converter_path: AlphaZero.processing.state_converter
+gameplay_path: AlphaZero.game.gameplay
 
 # Feature parameters for NN input and output
 board_width: 19

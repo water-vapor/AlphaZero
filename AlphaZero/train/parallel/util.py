@@ -1,6 +1,6 @@
 import multiprocessing as mp
-import threading as thrd
 import queue
+import threading as thrd
 
 
 def printlog(*msg):

@@ -1,5 +1,4 @@
 import AlphaZero.mcts as MCTS
-import AlphaZero.math_helper as helper
 
 
 def get_move_single(state, nn_eval, game_config):

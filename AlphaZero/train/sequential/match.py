@@ -1,9 +1,11 @@
-import random, os
+import os
+import random
+
+from AlphaZero.env.go import GameState, BLACK, WHITE
+from AlphaZero.math_helper import random_state_transform
+from AlphaZero.mcts import MCTSearch
 from AlphaZero.network.main import Network
 from AlphaZero.util import save_gamestate_to_sgf
-from AlphaZero.mcts import MCTSearch
-from AlphaZero.math_helper import random_state_transform
-from AlphaZero.env.go import GameState, BLACK, WHITE
 
 
 class Match(object):

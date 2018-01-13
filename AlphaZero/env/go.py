@@ -1,5 +1,6 @@
-import numpy as np
 from copy import deepcopy
+
+import numpy as np
 
 WHITE = -1
 BLACK = +1
@@ -68,6 +69,7 @@ class GameState(object):
             BLACK: rng.randint(np.iinfo(np.uint64).max, size=(size, size), dtype='uint64')}
         self.current_hash = np.uint64(0)
         self.previous_hashes = set()
+        self.turns = 0
 
     def get_group(self, position):
         """Get the group of connected same-color stones to the given position
@@ -445,6 +447,7 @@ class GameState(object):
             # next turn
             self.current_player = -color
             self.history.append(action)
+            self.turns += 1
             self.__legal_move_cache = None
         else:
             self.current_player = reset_player
@@ -471,7 +474,6 @@ class GameState(object):
                 b = np.fliplr(b)
             # Performs rotation
             b = np.rot90(b, transform_id % 4)
-
 
 
 class IllegalMove(Exception):

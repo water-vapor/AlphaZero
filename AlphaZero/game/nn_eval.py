@@ -1,13 +1,14 @@
 import atexit
-from queue import Empty as EmptyExc
+import importlib
 import traceback as tb
-#import AlphaZero.processing.go.state_converter as preproc
-import AlphaZero.network.main as network
-#import AlphaZero.env.go as go
-from AlphaZero.train.parallel.util import *
+from queue import Empty as EmptyExc
 
 import numpy as np
-import importlib
+
+# import AlphaZero.processing.go.state_converter as preproc
+import AlphaZero.network.main as network
+# import AlphaZero.env.go as go
+from AlphaZero.train.parallel.util import *
 
 
 class _EvalReq:
@@ -35,7 +36,8 @@ class NNEvaluator:
             pass
     """
 
-    def __init__(self, cluster, job, game_config, load_file=None, max_batch_size=32, **kwargs):  # TODO: use proper default value
+    def __init__(self, cluster, job, game_config, load_file=None, max_batch_size=32,
+                 **kwargs):  # TODO: use proper default value
         """
         :param net: network class. This class doesn't create network.
         :param max_batch_size: Int
@@ -56,6 +58,8 @@ class NNEvaluator:
 
         self._game_config = game_config
         self._preproc = importlib.import_module(game_config['state_converter_path'])
+        self._state_tensor_converter = self._preproc.StateTensorConverter(self._game_config)
+        self._tensor_action_converter = self._preproc.TensorActionConverter(self._game_config)
 
     def __enter__(self):
         """Will be called where the "with" statement begin"""
@@ -75,10 +79,10 @@ class NNEvaluator:
         :param state: GameState
         :return: (policy, value) pair
         """
-        state_np = self._preproc.StateTensorConverter().state_to_tensor(state)  # TODO: check preprocessor
+        state_np = self._state_tensor_converter.state_to_tensor(state)
         result_np = self.rcpt.req(state_np)
         # This game specific conversation is implemented in state converter
-        result = (self._preproc.TensorActionConverter().tensor_to_action(result_np[0]), result_np[1])
+        result = (self._tensor_action_converter.tensor_to_action(result_np[0]), result_np[1])
         # for i in range(361):
         #     result[0].append(((i // 19, i % 19), result_np[0][i]))
         # result[0].append((go.PASS_MOVE, result_np[0][361]))
@@ -109,7 +113,8 @@ class NNEvaluator:
         listeners. They are NN to be evaluated and best NN so far.
         """
         printlog('create network')
-        self.net = network.Network(self._game_config, config_file="AlphaZero/network/reinforce.yaml", cluster=self.cluster, job=self.job)
+        self.net = network.Network(self._game_config, config_file="AlphaZero/network/reinforce.yaml",
+                                   cluster=self.cluster, job=self.job)
         if self.load_file is not None:
             self.net.load(self.load_file)
 

@@ -1,4 +1,5 @@
 import tensorflow as tf
+
 from AlphaZero.network.util import batch_norm, linear
 
 
@@ -22,7 +23,6 @@ class Model(object):
         self._w = game_config['board_width']
         self._h = game_config['board_height']
         self._f = game_config['history_step'] * game_config['planes_per_step'] + game_config['additional_planes']
-
 
         self.x = tf.placeholder(tf.float32, [None, self._f, self._w, self._h], name="x")
         if game_config['output_plane'] == 1:

@@ -1,7 +1,9 @@
 import os
+
 import numpy as np
-from AlphaZero.train.sequential.nn_eval_seq import NNEvaluator
 from AlphaZero.game.gameplay_go import Game
+
+from AlphaZero.train.sequential.nn_eval_seq import NNEvaluator
 
 
 def selfplay(best_player_name, base_dir='data', num_games=25000):

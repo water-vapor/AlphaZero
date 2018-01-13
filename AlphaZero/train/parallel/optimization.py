@@ -1,9 +1,10 @@
 import atexit
 import traceback as tb
+
 import numpy as np
 
-from AlphaZero.train.parallel.util import *
 import AlphaZero.network.main as network
+from AlphaZero.train.parallel.util import *
 
 
 def kill_children():
@@ -37,7 +38,8 @@ class Optimizer:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def run(self):
-        self.net = network.Network(self.game_config, config_file="AlphaZero/network/reinforce.yaml", cluster=self.cluster, job=self.job)
+        self.net = network.Network(self.game_config, config_file="AlphaZero/network/reinforce.yaml",
+                                   cluster=self.cluster, job=self.job)
 
         self.data_queue.start_training.acquire()
         printlog('optimizer: training loop begin')

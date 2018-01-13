@@ -1,9 +1,11 @@
 import os
 import random
+
 import numpy as np
-from AlphaZero.train.sequential.nn_eval_seq import NNEvaluator
 from AlphaZero.game.gameplay_go import Game
+
 from AlphaZero.env.go import BLACK, WHITE
+from AlphaZero.train.sequential.nn_eval_seq import NNEvaluator
 
 
 def evaluate(best_player_name, player_to_eval_name, base_dir='data', num_games=400, num_gpu=1):

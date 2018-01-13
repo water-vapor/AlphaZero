@@ -1,5 +1,8 @@
-import os, re
+import os
+import re
+
 import numpy as np
+
 from AlphaZero.processing.go.game_converter import GameConverter
 
 

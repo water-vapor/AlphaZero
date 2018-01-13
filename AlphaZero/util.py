@@ -1,7 +1,9 @@
-import os
-import sgf
 import itertools
+import os
+
 import numpy as np
+import sgf
+
 from AlphaZero.env import go
 from AlphaZero.env.go import GameState
 

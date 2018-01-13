@@ -1,13 +1,20 @@
 #!/usr/bin/env python
-import numpy as np
-from AlphaZero.processing.go.state_converter import StateTensorConverter
-from AlphaZero.util import sgf_iter_states
-import AlphaZero.env.go as go
 import os
-import warnings
-import sgf
-import h5py as h5
 import pickle
+import warnings
+
+import h5py as h5
+import numpy as np
+import sgf
+import yaml
+
+import AlphaZero.env.go as go
+from AlphaZero.processing.state_converter import StateTensorConverter
+from AlphaZero.util import sgf_iter_states
+
+config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
+with open(config_path) as c:
+    config = yaml.load(c)
 
 
 class SizeMismatchError(Exception):
@@ -24,7 +31,7 @@ class SearchProbsMismatchError(Exception):
 
 class GameConverter:
     def __init__(self, features):
-        self.feature_processor = StateTensorConverter(features)
+        self.feature_processor = StateTensorConverter(config, features)
         self.n_features = self.feature_processor.output_dim
 
     def convert_game(self, file_name, bd_size):

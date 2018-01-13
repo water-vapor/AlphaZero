@@ -1,10 +1,11 @@
-import tensorflow as tf
-from AlphaZero.network.main import Network
-from tqdm import tqdm
-import numpy as np
-import time
-import yaml
 import os
+import time
+
+import numpy as np
+import yaml
+from tqdm import tqdm
+
+from AlphaZero.network.main import Network
 
 go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
 with open(go_config_path) as c:

@@ -1,9 +1,10 @@
-import numpy as np
 from copy import deepcopy
+
+import numpy as np
 
 WHITE = -1
 BLACK = +1
-
+PASS_MOVE = None
 EMPTY = 0
 
 
@@ -24,8 +25,8 @@ class GameState(object):
         self.history_length = history_length
         self.board_history = [np.zeros((size, size), dtype=int) for _ in range(history_length - 1)]
         self.is_end_of_game = False
-        self.winner = None
-        self.stones_played = 0
+        self.winner = 0
+        self.turns = 0
 
     def _on_board(self, position):
         """simply return True iff position is within the bounds of [0, self.size)
@@ -87,7 +88,7 @@ class GameState(object):
             # do action
             (x, y) = action
             self.board[x][y] = color
-            self.stones_played += 1
+            self.turns += 1
 
             # check if the current player wins by the move
             # check horizontal
@@ -138,7 +139,7 @@ class GameState(object):
                 self.winner = self.current_player
 
             # check if stone has filled the board if no one wins yet
-            elif self.stones_played == self.size * self.size:
+            elif self.turns == self.size * self.size:
                 self.is_end_of_game = True
                 self.winner = None
 

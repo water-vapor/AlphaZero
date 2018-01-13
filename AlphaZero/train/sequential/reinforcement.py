@@ -1,7 +1,10 @@
-import argparse, os, json
+import argparse
+import json
+import os
+
 from AlphaZero.network.main import Network
-from AlphaZero.train.sequential.optimization import optimize
 from AlphaZero.train.sequential.evaluator import evaluate
+from AlphaZero.train.sequential.optimization import optimize
 from AlphaZero.train.sequential.selfplay import selfplay
 from AlphaZero.train.sequential.util import get_current_time
 

@@ -1,10 +1,11 @@
 import atexit
-import traceback as tb
 import importlib
+import traceback as tb
 
-#import AlphaZero.game.go.gameplay as gameplay
-#import AlphaZero.env.go as go
+# import AlphaZero.game.go.gameplay as gameplay
+# import AlphaZero.env.go as go
 from AlphaZero.train.parallel.util import *
+
 
 # Selection logic in evaluator only work in two-player games, and they must be named BLACK and WHITE in game env
 
@@ -35,7 +36,6 @@ class Evaluator:
         self._game_env = importlib.import_module(game_config['env_path'])
         self._gameplay = importlib.import_module(game_config['gameplay_path'])
 
-
     def __enter__(self):
         printlog('evaluator: start proc')
         self.proc.start()
@@ -54,7 +54,8 @@ class Evaluator:
         self.nn_eval_best.rwlock.r_acquire()
 
         printlog('begin')
-        game = self._gameplay.Game(self.nn_eval_chal, self.nn_eval_best) if color_of_new == self._game_env.BLACK else self._gameplay.Game(
+        game = self._gameplay.Game(self.nn_eval_chal,
+                                   self.nn_eval_best) if color_of_new == self._game_env.BLACK else self._gameplay.Game(
             self.nn_eval_best, self.nn_eval_chal)
         winner = game.start()
         if winner == color_of_new:
@@ -78,7 +79,8 @@ class Evaluator:
             self.nn_eval_chal.load('./' + self.game_config['name'] + '_model/ckpt-' + str(new_model_path))
             self.win_counter.value = 0
             # open pool
-            color_of_new_list = [self._game_env.BLACK, self._game_env.WHITE] * (self.num_games // 2) + [self._game_env.BLACK] * (self.num_games % 2)
+            color_of_new_list = [self._game_env.BLACK, self._game_env.WHITE] * (self.num_games // 2) + [
+                self._game_env.BLACK] * (self.num_games % 2)
             for i, c in enumerate(color_of_new_list):
                 self.worker_lim.acquire()
                 mp.Process(target=self.eval_wrapper, args=(c,), name='eval_game_' + str(i)).start()

@@ -1,5 +1,5 @@
 import os
-import numpy as np
+
 import yaml
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
@@ -13,7 +13,8 @@ reinforce_config = os.path.join("AlphaZero", "network", "reinforce.yaml")
 
 class Network(object):
 
-    def __init__(self, game_config, num_gpu=1, config_file=reinforce_config, pretrained=False, mode="NHWC", cluster=None, job=None):
+    def __init__(self, game_config, num_gpu=1, config_file=reinforce_config, pretrained=False, mode="NHWC",
+                 cluster=None, job=None):
         with open(config_file) as fh:
             self.config = yaml.load(fh)
         self.num_gpu = num_gpu

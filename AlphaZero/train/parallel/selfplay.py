@@ -1,8 +1,8 @@
-import traceback as tb
 import atexit
 import importlib
+import traceback as tb
 
-#import AlphaZero.game.go.gameplay as gameplay
+# import AlphaZero.game.go.gameplay as gameplay
 from AlphaZero.train.parallel.util import *
 
 
@@ -40,7 +40,7 @@ class Selfplay:
         # process comm
         self.nn_eval.rwlock.r_acquire()
         # start game
-        game = self._gameplay.Game(self.nn_eval, self.nn_eval)
+        game = self._gameplay.Game(self.nn_eval, self.nn_eval, self.game_config)
         game.start()
         # get game history
         # convert
@@ -58,7 +58,8 @@ class Selfplay:
         cnt = 0
         while True:
             self.worker_lim.acquire()
-            mp.Process(target=self.selfplay_wrapper, name=self.game_config['name'] + '_selfplay_game_' + str(cnt)).start()
+            mp.Process(target=self.selfplay_wrapper,
+                       name=self.game_config['name'] + '_selfplay_game_' + str(cnt)).start()
             cnt += 1
 
     def listen_update(self):

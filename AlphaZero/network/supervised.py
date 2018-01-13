@@ -1,10 +1,12 @@
 import argparse
+import os
+import random
+
 import h5py as h5
 import numpy as np
 import tensorflow as tf
-import random
-import os
 import yaml
+
 from AlphaZero.network.main import Network
 
 go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')

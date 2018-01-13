@@ -1,17 +1,16 @@
+import argparse
+import multiprocessing as mp
+import os
+import time
+
+import tensorflow as tf
+import yaml
+
 import AlphaZero.game.nn_eval as nn_eval
 import AlphaZero.train.parallel.evaluator as evaluator
 import AlphaZero.train.parallel.optimization as optimization
 import AlphaZero.train.parallel.selfplay as selfplay
-import AlphaZero.network.main as network
 from AlphaZero.train.parallel.util import *
-
-import tensorflow as tf
-import argparse
-import multiprocessing as mp
-import time
-import yaml
-import importlib
-import os
 
 if __name__ == '__main__':
     # Read the name of the game from cmd, load name.yaml from config folder

@@ -1,5 +1,7 @@
 import os
+
 import numpy as np
+
 from AlphaZero.network.main import Network
 from AlphaZero.train.sequential.util import get_current_time, shuffled_npy_batch_generator
 

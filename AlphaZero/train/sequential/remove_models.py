@@ -1,5 +1,5 @@
-import shutil
 import os
+import shutil
 
 
 def remove_dir(path):

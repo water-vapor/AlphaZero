@@ -1,6 +1,7 @@
 from AlphaZero.processing.go.state_converter import StateTensorConverter
-from AlphaZero.network.main import Network
+
 import AlphaZero.env.go as go
+from AlphaZero.network.main import Network
 
 
 class NNEvaluator:

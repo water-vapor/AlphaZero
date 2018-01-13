@@ -1,6 +1,8 @@
-import math
 import importlib
+import math
+
 from numpy.random import randint
+
 from AlphaZero.math_helper import random_variate_dirichlet, weighted_random_choice
 
 # Parameter for PUCT Algorithm
@@ -126,7 +128,8 @@ class MCTSearch(object):
         else:
             self.enable_transform = True
             self._sc = importlib.import_module(game_config['state_converter_path'])
-            self._reverse_transformer = self._sc.reverse_transform
+            self._reverse_transformer = self._sc.ReverseTransformer(game_config)
+            self._reverse_transform = self._reverse_transformer.reverse_transform
 
     def _playout(self, state, node):
         """
@@ -162,7 +165,7 @@ class MCTSearch(object):
                 state_eval = state.copy()
                 state_eval.transform(random_transform_id)
                 transformed_children_candidates, value = self._evaluator(state_eval)
-                self._reverse_transformer(transformed_children_candidates, random_transform_id)
+                self._reverse_transform(transformed_children_candidates, random_transform_id)
                 children_candidates = transformed_children_candidates
             else:
                 children_candidates, value = self._evaluator(state)
@@ -218,7 +221,7 @@ class MCTSearch(object):
                 state_eval = state.copy()
                 state_eval.transform(random_transform_id)
                 transformed_children_candidates, value = self._evaluator(state_eval)
-                self._reverse_transformer(transformed_children_candidates, random_transform_id)
+                self._reverse_transform(transformed_children_candidates, random_transform_id)
                 children_candidates = transformed_children_candidates
             else:
                 children_candidates, value = self._evaluator(state)
