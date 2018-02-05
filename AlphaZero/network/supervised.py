@@ -17,7 +17,7 @@ with open(go_config_path) as c:
 
 
 def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
-                                  indices, batch_size, inexhaust=False, shuffle=True):
+                                  indices, batch_size, shuffle=True):
     """A generator of shuffled batches of training data. Note that the indices will
        be automatically repeated and the generator will never stop
     """
@@ -33,13 +33,8 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
         categorical[int(size * x + y)] = 1
         return categorical
 
-    def idx_gen(indices):
-        while True:
-            yield np.random.choice(indices)
-
     if shuffle:
         random.shuffle(indices)
-    gen = idx_gen(indices) if inexhaust else indices
     state_batch_shape = (batch_size,) + state_dataset.shape[1:]
     game_size = state_batch_shape[-1]
     Xbatch = np.zeros(state_batch_shape, dtype=np.float32)
@@ -47,18 +42,17 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
         (batch_size, game_size * game_size + 1), dtype=np.float32)
     Zbatch = np.zeros(batch_size, dtype=np.float32)
     batch_idx = 0
-    while True:
-        for data_idx in gen:
-            state = np.array([plane for plane in state_dataset[data_idx]])
-            action = convert_action(action_dataset[data_idx], game_size)
-            result = result_dataset[data_idx]
-            Xbatch[batch_idx] = state
-            Ybatch[batch_idx] = action
-            Zbatch[batch_idx] = result
-            batch_idx += 1
-            if batch_idx == batch_size:
-                batch_idx = 0
-                yield (Xbatch, Ybatch, Zbatch)
+    for data_idx in indices:
+        state = np.array([plane for plane in state_dataset[data_idx]])
+        action = convert_action(action_dataset[data_idx], game_size)
+        result = result_dataset[data_idx]
+        Xbatch[batch_idx] = state
+        Ybatch[batch_idx] = action
+        Zbatch[batch_idx] = result
+        batch_idx += 1
+        if batch_idx == batch_size:
+            batch_idx = 0
+            yield (Xbatch, Ybatch, Zbatch)
 
 
 def evaluate(network, data_generator, tag="train", max_batch=None):
@@ -108,6 +102,8 @@ def run_training(cmd_line_args=None):
                         nargs=3, type=float, default=[0.93, .05, .02])
     parser.add_argument(
         "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="log")
+    parser.add_argument(
+        "--save_dir", help="Directory for storing the latest model", type=str, default="model")
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -141,20 +137,6 @@ def run_training(cmd_line_args=None):
             dataset["results"],
             train_indices,
             args.minibatch)
-        val_data_generator = shuffled_hdf5_batch_generator(
-            dataset["states"],
-            dataset["actions"],
-            dataset["results"],
-            val_indices,
-            args.minibatch,
-            inexhaust=True)
-        eval_data_generator = shuffled_hdf5_batch_generator(
-            dataset["states"],
-            dataset["actions"],
-            dataset["results"],
-            eval_indices,
-            args.minibatch,
-            inexhaust=True)
         print("Epoch: {}".format(epoch))
         for batch in tqdm(train_data_generator, total=total_batches):
             global_step = model.get_global_step() + 1
@@ -164,6 +146,18 @@ def run_training(cmd_line_args=None):
                     tag="model/loss", simple_value=loss), ])
                 writer.add_summary(loss_sum, global_step)
             if global_step % args.checkpoint == 0:
+                val_data_generator = shuffled_hdf5_batch_generator(
+                    dataset["states"],
+                    dataset["actions"],
+                    dataset["results"],
+                    val_indices,
+                    args.minibatch)
+                eval_data_generator = shuffled_hdf5_batch_generator(
+                    dataset["states"],
+                    dataset["actions"],
+                    dataset["results"],
+                    eval_indices,
+                    args.minibatch)
                 print("Evaluation at step {}".format(global_step))
                 val_loss, val_accuracy, val_mse, val_sum = evaluate(
                     model, val_data_generator, tag="val", max_batch=args.num_batches)
@@ -172,11 +166,7 @@ def run_training(cmd_line_args=None):
                 for summ in chain(val_sum, eval_sum):
                     writer.add_summary(summ, global_step)
                 writer.flush()
-                model.save(os.path.join(model.config.save_dir, "model"))
-
-        del train_data_generator
-        del val_data_generator
-        del eval_data_generator
+                model.save(args.save_dir)
 
 
 if __name__ == '__main__':
