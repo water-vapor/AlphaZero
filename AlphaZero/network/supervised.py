@@ -6,14 +6,16 @@ import h5py as h5
 import numpy as np
 import tensorflow as tf
 import yaml
-
-from AlphaZero.network.main import Network
 from itertools import chain
 from tqdm import tqdm
+
+from AlphaZero.network.main import Network
 
 go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
 with open(go_config_path) as c:
     game_config = yaml.load(c)
+
+np.set_printoptions(threshold=np.nan)
 
 
 def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
@@ -58,7 +60,7 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
 def evaluate(network, data_generator, tag="train", max_batch=None):
     accuracies = []
     mses = []
-    for num, batch in tqdm(enumerate(data_generator)):
+    for num, batch in enumerate(data_generator):
         state, action, result = batch
         loss, R_p, R_v = network.evaluate((state, action, result,))
         mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
@@ -88,15 +90,15 @@ def run_training(cmd_line_args=None):
     parser.add_argument(
         "--num_gpu", "-G", help="Number of GPU used for training. Default: 1", type=int, default=1)
     parser.add_argument(
-        "--minibatch", "-B", help="Size of training data minibatches. Default: 8", type=int, default=8)
+        "--minibatch", "-B", help="Size of training data minibatches. Default: 32", type=int, default=32)
     parser.add_argument(
         "--epochs", "-E", help="Total number of iterations on the data. Default: 10", type=int, default=10)
     parser.add_argument(
         "--log_iter", help="Number of steps to record training loss", type=int, default=100)
     parser.add_argument(
-        "--checkpoint", "-C", help="Number of steps before each evaluation", type=int, default=3000)
+        "--checkpoint", "-C", help="Number of steps before each evaluation", type=int, default=1000)
     parser.add_argument(
-        "--num_batches", help="Number of batches to evaluate the network", type=int, default=300)
+        "--num_batches", help="Number of batches to evaluate the network", type=int, default=100)
     parser.add_argument("--train-val-test",
                         help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
                         nargs=3, type=float, default=[0.93, .05, .02])
@@ -116,20 +118,19 @@ def run_training(cmd_line_args=None):
     n_train_data = n_train_data - (n_train_data % args.minibatch)
     n_val_data = n_total_data - n_train_data
 
-    print("datset loaded")
-    print("\t%d total samples" % n_total_data)
-    print("\t%d training samples" % n_train_data)
-    print("\t%d validaion samples" % n_val_data)
+    print("Dataset loaded, {} samples, {} training samples, {} validaion samples".format(
+        n_total_data, n_train_data, n_val_data))
     print("START TRAINING")
 
     shuffle_indices = np.random.permutation(n_total_data)
     train_indices = shuffle_indices[0: n_train_data]
     eval_indices = shuffle_indices[0: n_train_data]
-    val_indices = shuffle_indices[n_train_data:n_train_data + n_val_data]
+    val_indices = shuffle_indices[n_train_data: n_train_data + n_val_data]
     config_file = os.path.join("AlphaZero", "network", "supervised.yaml")
-    model = Network(game_config, args.num_gpu, config_file=config_file)
+    model = Network(game_config, args.num_gpu,
+                    config_file=config_file, mode="NCHW")
     writer = tf.summary.FileWriter(args.log_dir)
-    total_batches = (len(train_indices) + args.minibatch - 1) // args.minibatch
+    total_batches = len(train_indices) // args.minibatch
     for epoch in range(args.epochs):
         train_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],
@@ -137,7 +138,7 @@ def run_training(cmd_line_args=None):
             dataset["results"],
             train_indices,
             args.minibatch)
-        print("Epoch: {}".format(epoch))
+        print("Epoch {}".format(epoch))
         for batch in tqdm(train_data_generator, total=total_batches):
             global_step = model.get_global_step() + 1
             loss = model.update(batch)
@@ -159,14 +160,44 @@ def run_training(cmd_line_args=None):
                     eval_indices,
                     args.minibatch)
                 print("Evaluation at step {}".format(global_step))
-                val_loss, val_accuracy, val_mse, val_sum = evaluate(
-                    model, val_data_generator, tag="val", max_batch=args.num_batches)
                 eval_loss, eval_accuracy, eval_mse, eval_sum = evaluate(
                     model, eval_data_generator, tag="train", max_batch=args.num_batches)
+                print("Train loss {}, accuracy {}, mse {}".format(
+                    eval_loss, eval_accuracy, eval_mse))
+                val_loss, val_accuracy, val_mse, val_sum = evaluate(
+                    model, val_data_generator, tag="val", max_batch=args.num_batches)
+                print("Dev loss {}, accuracy {}, mse {}".format(
+                    val_loss, val_accuracy, val_mse))
                 for summ in chain(val_sum, eval_sum):
                     writer.add_summary(summ, global_step)
                 writer.flush()
                 model.save(args.save_dir)
+
+        val_data_generator = shuffled_hdf5_batch_generator(
+            dataset["states"],
+            dataset["actions"],
+            dataset["results"],
+            val_indices,
+            args.minibatch)
+        eval_data_generator = shuffled_hdf5_batch_generator(
+            dataset["states"],
+            dataset["actions"],
+            dataset["results"],
+            eval_indices,
+            args.minibatch)
+        print("Evaluation at step {}".format(global_step))
+        eval_loss, eval_accuracy, eval_mse, eval_sum = evaluate(
+            model, eval_data_generator, tag="train", max_batch=args.num_batches)
+        print("Train loss {}, accuracy {}, mse {}".format(
+            eval_loss, eval_accuracy, eval_mse))
+        val_loss, val_accuracy, val_mse, val_sum = evaluate(
+            model, val_data_generator, tag="val", max_batch=args.num_batches)
+        print("Dev loss {}, accuracy {}, mse {}".format(
+            val_loss, val_accuracy, val_mse))
+        for summ in chain(val_sum, eval_sum):
+            writer.add_summary(summ, global_step)
+        writer.flush()
+        model.save(args.save_dir)
 
 
 if __name__ == '__main__':
