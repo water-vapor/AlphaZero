@@ -8,6 +8,8 @@ import tensorflow as tf
 import yaml
 
 from AlphaZero.network.main import Network
+from itertools import chain
+from tqdm import tqdm
 
 go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
 with open(go_config_path) as c:
@@ -15,7 +17,7 @@ with open(go_config_path) as c:
 
 
 def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
-                                  indices, batch_size, inexhaust=False, shuffle=True):
+                                  indices, batch_size, shuffle=True):
     """A generator of shuffled batches of training data. Note that the indices will
        be automatically repeated and the generator will never stop
     """
@@ -31,12 +33,8 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
         categorical[int(size * x + y)] = 1
         return categorical
 
-    def idx_gen(indices):
-        yield np.random.choice(indices)
-
     if shuffle:
         random.shuffle(indices)
-    gen = idx_gen(indices) if inexhaust else indices
     state_batch_shape = (batch_size,) + state_dataset.shape[1:]
     game_size = state_batch_shape[-1]
     Xbatch = np.zeros(state_batch_shape, dtype=np.float32)
@@ -44,30 +42,29 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
         (batch_size, game_size * game_size + 1), dtype=np.float32)
     Zbatch = np.zeros(batch_size, dtype=np.float32)
     batch_idx = 0
-    while True:
-        for data_idx in gen:
-            state = np.array([plane for plane in state_dataset[data_idx]])
-            action = convert_action(action_dataset[data_idx], game_size)
-            result = result_dataset[data_idx]
-            Xbatch[batch_idx] = state
-            Ybatch[batch_idx] = action
-            Zbatch[batch_idx] = result
-            batch_idx += 1
-            if batch_idx == batch_size:
-                batch_idx = 0
-                yield (Xbatch, Ybatch, Zbatch)
+    for data_idx in indices:
+        state = np.array([plane for plane in state_dataset[data_idx]])
+        action = convert_action(action_dataset[data_idx], game_size)
+        result = result_dataset[data_idx]
+        Xbatch[batch_idx] = state
+        Ybatch[batch_idx] = action
+        Zbatch[batch_idx] = result
+        batch_idx += 1
+        if batch_idx == batch_size:
+            batch_idx = 0
+            yield (Xbatch, Ybatch, Zbatch)
 
 
 def evaluate(network, data_generator, tag="train", max_batch=None):
     accuracies = []
     mses = []
-    for num, batch in enumerate(data_generator):
+    for num, batch in tqdm(enumerate(data_generator)):
         state, action, result = batch
         loss, R_p, R_v = network.evaluate((state, action, result,))
         mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
         accuracies.append(np.mean(mask.astype(np.float32)))
         mses.append(np.mean(np.square(R_v - result)))
-        if max_batch and num > max_batch:
+        if max_batch is not None and num >= max_batch:
             break
     accuracy = np.mean(accuracies)
     mse = np.mean(mses)
@@ -86,10 +83,10 @@ def run_training(cmd_line_args=None):
     """
     parser = argparse.ArgumentParser(
         description='Perform supervised training on a policy network.')
-    parser.add_argument("-train_data", "-D",
+    parser.add_argument("--train_data", "-D",
                         help="A .h5 file of training data")
     parser.add_argument(
-        "-num_gpu", "-G", help="Number of GPU used for training. Default: 1", type=int, default=1)
+        "--num_gpu", "-G", help="Number of GPU used for training. Default: 1", type=int, default=1)
     parser.add_argument(
         "--minibatch", "-B", help="Size of training data minibatches. Default: 8", type=int, default=8)
     parser.add_argument(
@@ -100,13 +97,13 @@ def run_training(cmd_line_args=None):
         "--checkpoint", "-C", help="Number of steps before each evaluation", type=int, default=3000)
     parser.add_argument(
         "--num_batches", help="Number of batches to evaluate the network", type=int, default=300)
-    parser.add_argument("--verbose", "-v", help="Turn on verbose mode",
-                        default=False, action="store_true")
     parser.add_argument("--train-val-test",
                         help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
                         nargs=3, type=float, default=[0.93, .05, .02])
     parser.add_argument(
         "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="log")
+    parser.add_argument(
+        "--save_dir", help="Directory for storing the latest model", type=str, default="model")
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -119,18 +116,14 @@ def run_training(cmd_line_args=None):
     n_train_data = n_train_data - (n_train_data % args.minibatch)
     n_val_data = n_total_data - n_train_data
 
-    if args.verbose:
-        print("datset loaded")
-        print("\t%d total samples" % n_total_data)
-        print("\t%d training samples" % n_train_data)
-        print("\t%d validaion samples" % n_val_data)
-
-    if args.verbose:
-        from tqdm import tqdm
-        print("STARTING TRAINING")
+    print("datset loaded")
+    print("\t%d total samples" % n_total_data)
+    print("\t%d training samples" % n_train_data)
+    print("\t%d validaion samples" % n_val_data)
+    print("START TRAINING")
 
     shuffle_indices = np.random.permutation(n_total_data)
-    train_indices = shuffle_indices[0:n_train_data]
+    train_indices = shuffle_indices[0: n_train_data]
     eval_indices = shuffle_indices[0: n_train_data]
     val_indices = shuffle_indices[n_train_data:n_train_data + n_val_data]
     config_file = os.path.join("AlphaZero", "network", "supervised.yaml")
@@ -144,46 +137,36 @@ def run_training(cmd_line_args=None):
             dataset["results"],
             train_indices,
             args.minibatch)
-        val_data_generator = shuffled_hdf5_batch_generator(
-            dataset["states"],
-            dataset["actions"],
-            dataset["results"],
-            val_indices,
-            args.minibatch,
-            inexhaust=True)
-        eval_data_generator = shuffled_hdf5_batch_generator(
-            dataset["states"],
-            dataset["actions"],
-            dataset["results"],
-            eval_indices,
-            args.minibatch,
-            inexhaust=True)
-        if args.verbose:
-            print("Epoch: {}".format(epoch))
-            train_data_generator = tqdm(
-                train_data_generator, total=total_batches)
-        for batch in train_data_generator:
+        print("Epoch: {}".format(epoch))
+        for batch in tqdm(train_data_generator, total=total_batches):
             global_step = model.get_global_step() + 1
             loss = model.update(batch)
             if global_step % args.log_iter == 0:
                 loss_sum = tf.Summary(value=[tf.Summary.Value(
                     tag="model/loss", simple_value=loss), ])
                 writer.add_summary(loss_sum, global_step)
-            if (global_step + 1) % args.checkpoint == 0:
-                if args.verbose:
-                    print("Evaluation at step {}".format(global_step))
+            if global_step % args.checkpoint == 0:
+                val_data_generator = shuffled_hdf5_batch_generator(
+                    dataset["states"],
+                    dataset["actions"],
+                    dataset["results"],
+                    val_indices,
+                    args.minibatch)
+                eval_data_generator = shuffled_hdf5_batch_generator(
+                    dataset["states"],
+                    dataset["actions"],
+                    dataset["results"],
+                    eval_indices,
+                    args.minibatch)
+                print("Evaluation at step {}".format(global_step))
                 val_loss, val_accuracy, val_mse, val_sum = evaluate(
                     model, val_data_generator, tag="val", max_batch=args.num_batches)
                 eval_loss, eval_accuracy, eval_mse, eval_sum = evaluate(
                     model, eval_data_generator, tag="train", max_batch=args.num_batches)
-                for summ in val_sum + eval_sum:
+                for summ in chain(val_sum, eval_sum):
                     writer.add_summary(summ, global_step)
                 writer.flush()
-                model.save(os.path.join(model.config.save_dir, "model"))
-
-        del train_data_generator
-        del val_data_generator
-        del eval_data_generator
+                model.save(args.save_dir)
 
 
 if __name__ == '__main__':
