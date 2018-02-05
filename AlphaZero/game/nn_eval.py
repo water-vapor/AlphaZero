@@ -4,11 +4,20 @@ import traceback as tb
 from queue import Empty as EmptyExc
 
 import numpy as np
+import yaml
 
 # import AlphaZero.processing.go.state_converter as preproc
 import AlphaZero.network.main as network
 # import AlphaZero.env.go as go
 from AlphaZero.train.parallel.util import *
+
+with open('AlphaZero/config/game.yaml') as f:
+    game_selection = yaml.load(f)['game']
+with open('AlphaZero/config/' + game_selection + '.yaml') as c:
+    game_config = yaml.load(c)
+_preproc = importlib.import_module(game_config['state_converter_path'])
+_state_tensor_converter = _preproc.StateTensorConverter(game_config)
+_tensor_action_converter = _preproc.TensorActionConverter(game_config)
 
 
 class _EvalReq:
@@ -56,11 +65,6 @@ class NNEvaluator:
         self.rcpt = Reception(max_batch_size * 2)
         self.sl_rcpt = Reception(5)
 
-        self._game_config = game_config
-        self._preproc = importlib.import_module(game_config['state_converter_path'])
-        self._state_tensor_converter = self._preproc.StateTensorConverter(self._game_config)
-        self._tensor_action_converter = self._preproc.TensorActionConverter(self._game_config)
-
     def __enter__(self):
         """Will be called where the "with" statement begin"""
         printlog('nn_eval: start listening')
@@ -79,10 +83,10 @@ class NNEvaluator:
         :param state: GameState
         :return: (policy, value) pair
         """
-        state_np = self._state_tensor_converter.state_to_tensor(state)
+        state_np = _state_tensor_converter.state_to_tensor(state)
         result_np = self.rcpt.req(state_np)
         # This game specific conversation is implemented in state converter
-        result = (self._tensor_action_converter.tensor_to_action(result_np[0]), result_np[1])
+        result = (_tensor_action_converter.tensor_to_action(result_np[0]), result_np[1])
         # for i in range(361):
         #     result[0].append(((i // 19, i % 19), result_np[0][i]))
         # result[0].append((go.PASS_MOVE, result_np[0][361]))
@@ -113,7 +117,7 @@ class NNEvaluator:
         listeners. They are NN to be evaluated and best NN so far.
         """
         printlog('create network')
-        self.net = network.Network(self._game_config, config_file="AlphaZero/network/reinforce.yaml",
+        self.net = network.Network(game_config, config_file="AlphaZero/network/reinforce.yaml",
                                    cluster=self.cluster, job=self.job)
         if self.load_file is not None:
             self.net.load(self.load_file)

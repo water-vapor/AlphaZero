@@ -6,6 +6,12 @@ import yaml
 # import AlphaZero.game.go.gameplay as gameplay
 from AlphaZero.train.parallel.util import *
 
+with open('AlphaZero/config/game.yaml') as f:
+    game_selection = yaml.load(f)['game']
+with open('AlphaZero/config/' + game_selection + '.yaml') as c:
+    game_config = yaml.load(c)
+_gameplay = importlib.import_module(game_config['gameplay_path'])
+
 
 def kill_children():
     for p in mp.active_children():
@@ -27,7 +33,6 @@ class Selfplay:
         self.num_worker = ext_config['num_worker']
         self.worker_lim = mp.Semaphore(self.num_worker)
         self.game_config = game_config
-        self._gameplay = importlib.import_module(game_config['gameplay_path'])
 
     def __enter__(self):
         printlog('selfplay: start proc')
@@ -45,7 +50,7 @@ class Selfplay:
         # process comm
         self.nn_eval.rwlock.r_acquire()
         # start game
-        game = self._gameplay.Game(self.nn_eval, self.nn_eval, self.game_config)
+        game = _gameplay.Game(self.nn_eval, self.nn_eval, self.game_config)
         game.start()
         # get game history
         # convert

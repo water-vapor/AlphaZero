@@ -15,13 +15,15 @@ from AlphaZero.train.parallel.util import *
 if __name__ == '__main__':
     # Read the name of the game from cmd, load name.yaml from config folder
     parser = argparse.ArgumentParser(description='Performs reinforcement learning of AlphaZero.')
-    parser.add_argument("--game", '-g', help="Name of the game, in lower case.", type=str, default="go")
+    # parser.add_argument("--game", '-g', help="Name of the game, in lower case.", type=str, default="go")
     args = parser.parse_args()
 
     # Load config from yaml file
-    config_path = os.path.join('AlphaZero', 'config', args.game + '.yaml')
+    with open('AlphaZero/config/game.yaml') as f:
+        game_selection = yaml.load(f)['game']
+    config_path = os.path.join('AlphaZero', 'config', game_selection + '.yaml')
     if not os.path.exists(config_path):
-        raise NotImplementedError("{} game config file does not exist.".format(args.game))
+        raise NotImplementedError("{} game config file does not exist.".format(game_selection))
     else:
         with open(config_path) as c:
             game_config = yaml.load(c)

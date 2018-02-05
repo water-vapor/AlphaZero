@@ -44,7 +44,7 @@ class Game:
             if self.state.turns % self.log_iter == 0:
                 printlog(str(self.state.turns), 'moves')
 
-            move, probs = current_player.think(self.state, (self.state.turns <= self.dirichlet_before))
+            move, probs = current_player.think(self.state, (self.state.turns <= self.dirichlet_before))  # TODO: dirichlet doesn't work
             self.state_history.append(self.state.copy())
             self.probs_history.append(probs)
             self.state.do_move(move)

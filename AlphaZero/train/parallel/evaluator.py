@@ -7,6 +7,13 @@ import yaml
 # import AlphaZero.env.go as go
 from AlphaZero.train.parallel.util import *
 
+with open('AlphaZero/config/game.yaml') as f:
+    game_selection = yaml.load(f)['game']
+with open('AlphaZero/config/' + game_selection + '.yaml') as c:
+    game_config = yaml.load(c)
+_game_env = importlib.import_module(game_config['env_path'])
+_gameplay = importlib.import_module(game_config['gameplay_path'])
+
 
 # Selection logic in evaluator only work in two-player games, and they must be named BLACK and WHITE in game env
 
@@ -19,7 +26,7 @@ class Evaluator:
 
     def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, game_config, **kwargs):
         printlog('create evaluator')
-        with open('AlphaZero/trian/parallel/sys_config.yaml') as f:
+        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
             ext_config = yaml.load(f)['evaluator']
 
         self.num_games = ext_config['num_games']
@@ -37,8 +44,6 @@ class Evaluator:
         self.finished_worker = mp.Value('i', 0)
 
         self.game_config = game_config
-        self._game_env = importlib.import_module(game_config['env_path'])
-        self._gameplay = importlib.import_module(game_config['gameplay_path'])
 
     def __enter__(self):
         printlog('evaluator: start proc')
@@ -58,8 +63,8 @@ class Evaluator:
         self.nn_eval_best.rwlock.r_acquire()
 
         printlog('begin')
-        game = self._gameplay.Game(self.nn_eval_chal,
-                                   self.nn_eval_best) if color_of_new == self._game_env.BLACK else self._gameplay.Game(
+        game = _gameplay.Game(self.nn_eval_chal,
+                                   self.nn_eval_best) if color_of_new == _game_env.BLACK else _gameplay.Game(
             self.nn_eval_best, self.nn_eval_chal)
         winner = game.start()
         if winner == color_of_new:
@@ -83,8 +88,8 @@ class Evaluator:
             self.nn_eval_chal.load('./' + self.game_config['name'] + '_model/ckpt-' + str(new_model_path))
             self.win_counter.value = 0
             # open pool
-            color_of_new_list = [self._game_env.BLACK, self._game_env.WHITE] * (self.num_games // 2) + [
-                self._game_env.BLACK] * (self.num_games % 2)
+            color_of_new_list = [_game_env.BLACK, _game_env.WHITE] * (self.num_games // 2) + [
+                _game_env.BLACK] * (self.num_games % 2)
             for i, c in enumerate(color_of_new_list):
                 self.worker_lim.acquire()
                 mp.Process(target=self.eval_wrapper, args=(c,), name='eval_game_' + str(i)).start()
