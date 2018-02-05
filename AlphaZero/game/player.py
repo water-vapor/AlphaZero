@@ -31,16 +31,15 @@ class Player:
         e.g.
             move = player_1.think(state)
             state.do_move(move)
-            player_1.observe(move)
-            player_2.observe(move)
+            player_1.ack(move)
+            player_2.ack(move)
         :param nn_eval: NNEvaluator class.
         """
         self._game_config = game_config
         self.mcts = MCTS.MCTSearch(nn_eval.eval, self._game_config, max_playout=5)
 
-    def think(self, state):
-        # TODO: add dirichlet noise for first 30 moves
-        move, probs = self.mcts.calc_move_with_probs(state)
+    def think(self, state, dirichlet=False):
+        move, probs = self.mcts.calc_move_with_probs(state, dirichlet)
         return move, probs
 
     def ack(self, move):

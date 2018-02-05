@@ -1,6 +1,7 @@
 import atexit
 import importlib
 import traceback as tb
+import yaml
 
 # import AlphaZero.game.go.gameplay as gameplay
 from AlphaZero.train.parallel.util import *
@@ -12,15 +13,19 @@ def kill_children():
 
 
 class Selfplay:
-    def __init__(self, nn_eval, r_conn, data_queue, game_config):
+    def __init__(self, nn_eval, r_conn, data_queue, game_config, **kwargs):
         printlog('create selfplay')
+        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+            ext_config = yaml.load(f)['selfplay']
+
         self.nn_eval = nn_eval
         self.r_conn = r_conn
         self.data_queue = data_queue
         atexit.register(kill_children)
         self.proc = mp.Process(target=self.run, name='selfplay_game_launcher')
         self.listen_proc = mp.Process(target=self.listen_update, name='selfplay_listener')
-        self.worker_lim = mp.Semaphore(2)  # TODO: worker number
+        self.num_worker = ext_config['num_worker']
+        self.worker_lim = mp.Semaphore(self.num_worker)
         self.game_config = game_config
         self._gameplay = importlib.import_module(game_config['gameplay_path'])
 

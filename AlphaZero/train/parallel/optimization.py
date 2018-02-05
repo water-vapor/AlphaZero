@@ -2,6 +2,7 @@ import atexit
 import traceback as tb
 
 import numpy as np
+import yaml
 
 import AlphaZero.network.main as network
 from AlphaZero.train.parallel.util import *
@@ -20,9 +21,12 @@ class Optimizer:
         self.net = None
         self.s_conn = s_conn
         self.data_queue = data_queue
-        self.num_ckpt = kwargs.get('num_ckpt', 100)
-        self.num_steps = kwargs.get('num_steps', 700000)  # TODO: find correct steps
-        self.batch_size = kwargs.get('batch_size', 8)
+
+        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+            ext_config = yaml.load(f)['optimizer']
+        self.num_ckpt = ext_config['num_ckpt']
+        self.num_steps = ext_config['num_steps']
+        self.batch_size = ext_config['batch_size']
 
         atexit.register(kill_children)
         self.proc = mp.Process(target=self.run, name='opti')
@@ -54,13 +58,16 @@ class Optimizer:
 
 
 class Datapool:
-    def __init__(self, pool_size, start_data_size):
+    def __init__(self):
         self.data_pool = None
         self.start_training = mp.Semaphore(0)
-        self.pool_size = pool_size
-        self.start_data_size = start_data_size
 
-        conn_num = 20  # TODO: use proper number
+        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+            ext_config = yaml.load(f)['datapool']
+        self.pool_size = ext_config['pool_size']
+        self.start_data_size = ext_config['start_data_size']
+
+        conn_num = ext_config['conn_num']
         self.rcpt = Reception(conn_num)
 
         self.server = mp.Process(target=self.serve, name='data_pool_server')

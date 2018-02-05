@@ -1,6 +1,7 @@
 import atexit
 import importlib
 import traceback as tb
+import yaml
 
 # import AlphaZero.game.go.gameplay as gameplay
 # import AlphaZero.env.go as go
@@ -16,9 +17,12 @@ def kill_children():
 
 class Evaluator:
 
-    def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, game_config, num_games=10):
+    def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, game_config, **kwargs):
         printlog('create evaluator')
-        self.num_games = num_games
+        with open('AlphaZero/trian/parallel/sys_config.yaml') as f:
+            ext_config = yaml.load(f)['evaluator']
+
+        self.num_games = ext_config['num_games']
         self.nn_eval_chal = nn_eval_chal
         self.nn_eval_best = nn_eval_best
         atexit.register(kill_children)
@@ -26,8 +30,8 @@ class Evaluator:
         self.r_conn, self.s_conn = r_conn, s_conn
         self.win_counter = mp.Value('i', 0)
 
-        self.num_worker = 2
-        self.worker_lim = mp.Semaphore(self.num_worker)  # TODO: worker number
+        self.num_worker = ext_config['num_worker']
+        self.worker_lim = mp.Semaphore(self.num_worker)
 
         self.join_worker = mp.Semaphore(0)
         self.finished_worker = mp.Value('i', 0)
@@ -89,6 +93,6 @@ class Evaluator:
             printlog('win rate', self.win_counter.value / self.num_games)
             if self.win_counter.value >= int(0.55 * self.num_games):
                 # save model
-                # self.nn_eval_chal.save('./model/best_name') # TODO: use proper model name
+                # self.nn_eval_chal.save('./model/best_name')
                 # send path
                 self.s_conn.send(new_model_path)
