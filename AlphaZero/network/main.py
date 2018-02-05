@@ -1,12 +1,11 @@
 import os
-
-import yaml
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 import tensorflow as tf
+import yaml
 
 from AlphaZero.network.model import get_multi_models
 from AlphaZero.network.util import average_gradients
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 
 reinforce_config = os.path.join("AlphaZero", "network", "reinforce.yaml")
 
@@ -22,11 +21,13 @@ class Network(object):
 
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
-        server = tf.train.Server(cluster, job_name=job, task_index=0, config=sess_config)
+        server = tf.train.Server(
+            cluster, job_name=job, task_index=0, config=sess_config)
         self.sess = tf.Session(target=server.target)
 
         with tf.device('/job:' + job + '/task:0'):
-            self.models = get_multi_models(self.num_gpu, self.config, self._game_config, mode=mode)
+            self.models = get_multi_models(
+                self.num_gpu, self.config, self._game_config, mode=mode)
             self.saver = tf.train.Saver()
 
             self.lr = tf.placeholder(tf.float32, [], name="lr")
