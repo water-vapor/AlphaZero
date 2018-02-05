@@ -1,6 +1,8 @@
 import multiprocessing as mp
 import queue
 import threading as thrd
+from flask import Flask, request
+import requests
 
 
 def printlog(*msg):
@@ -83,8 +85,10 @@ class Reception_Thrd:
         r, conn = self.queue.get(block)
         return r, conn
 
-
-class Block_Pipe():
+def Block_Pipe():
+    bc = Block_Conn()
+    return bc, bc
+class Block_Conn:
     def __init__(self):
         self.data_r, self.data_s = mp.Pipe()
         self.ack_r, self.ack_s = mp.Pipe()
@@ -97,3 +101,18 @@ class Block_Pipe():
         msg = self.data_r.recv()
         self.ack_s.send(True)
         return msg
+
+def HTTP_Pipe():
+    pass
+class HTTP_recv:
+    def __init__(self):
+        pass
+
+    def recv(self):
+        pass
+class HTTP_send:
+    def __init__(self):
+        pass
+
+    def send(self):
+        pass

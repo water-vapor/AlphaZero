@@ -1,6 +1,7 @@
 import importlib
 
 import numpy as np
+import yaml
 
 import AlphaZero.game.player as player
 from AlphaZero.train.parallel.util import *
@@ -28,6 +29,11 @@ class Game:
         self._preproc = importlib.import_module(game_config['state_converter_path'])
         self._state_tensor_converter = self._preproc.StateTensorConverter(game_config)
 
+        with open('AlphaZero/game/gameplay.yaml') as f:
+            ext_config = yaml.load(f)
+        self.dirichlet_before = ext_config['dirichlet_before']
+        self.log_iter = ext_config['log_iter']
+
     def start(self):
         """ Make the instance callable. Start playing.
 
@@ -35,10 +41,10 @@ class Game:
         """
         current_player = self.player_1
         while not self.state.is_end_of_game:
-            if self.state.turns % 30 == 0:
+            if self.state.turns % self.log_iter == 0:
                 printlog(str(self.state.turns), 'moves')
 
-            move, probs = current_player.think(self.state)
+            move, probs = current_player.think(self.state, (self.state.turns <= self.dirichlet_before))  # TODO: dirichlet doesn't work
             self.state_history.append(self.state.copy())
             self.probs_history.append(probs)
             self.state.do_move(move)
