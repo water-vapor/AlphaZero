@@ -133,7 +133,8 @@ def run_training(cmd_line_args=None):
     train_indices = shuffle_indices[0:n_train_data]
     eval_indices = shuffle_indices[0: n_train_data]
     val_indices = shuffle_indices[n_train_data:n_train_data + n_val_data]
-    model = Network(game_config, args.num_gpu)
+    config_file = os.path.join("AlphaZero", "network", "supervised.yaml")
+    model = Network(game_config, args.num_gpu, config_file=config_file)
     writer = tf.summary.FileWriter(args.log_dir)
     total_batches = (len(train_indices) + args.minibatch - 1) // args.minibatch
     for epoch in range(args.epochs):
