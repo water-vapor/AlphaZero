@@ -22,11 +22,14 @@ class Model(object):
         self._game_config = game_config
         self._w = game_config['board_width']
         self._h = game_config['board_height']
-        self._f = game_config['history_step'] * game_config['planes_per_step'] + game_config['additional_planes']
+        self._f = game_config['history_step'] * \
+            game_config['planes_per_step'] + game_config['additional_planes']
 
-        self.x = tf.placeholder(tf.float32, [None, self._f, self._w, self._h], name="x")
+        self.x = tf.placeholder(
+            tf.float32, [None, self._f, self._w, self._h], name="x")
         if game_config['output_plane'] == 1:
-            self.p = tf.placeholder(tf.float32, [None, game_config['flat_move_output']], name="p")
+            self.p = tf.placeholder(
+                tf.float32, [None, game_config['flat_move_output']], name="p")
         else:
             # TODO: multiple layer output needs further modification on model structure
             self.p = tf.placeholder(tf.float32, [None, game_config['output_plane'], game_config['flat_move_output']],

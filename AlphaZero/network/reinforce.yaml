@@ -2,10 +2,10 @@ num_blocks: 19                  # number of residual blocks in ResNet
 batch_decay: 0.9                # decay factor in batch normalization
 learning_rate:                  # learning rate scheme
  0: 1e-2
- 200: 1e-2
- 400: 1e-3
- 600: 1e-4
- 700: 1e-4
+ 20000: 1e-2
+ 40000: 1e-3
+ 60000: 1e-4
+ 70000: 1e-4
 momentum: 0.9                   # momentum of MomentumOptimizer
 l2: 1e-4                        # weight decay factor
 MSE_scaling: 1.0                # MSE rescaling factor

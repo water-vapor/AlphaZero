@@ -4,7 +4,7 @@ import tensorflow as tf
 def batch_norm(x, config, is_train=True, scope="bn", mode="NHWC"):
     with tf.variable_scope(scope):
         return tf.contrib.layers.batch_norm(x, decay=config["batch_decay"], center=True, scale=True,
-                                            is_training=is_train, fused=True, data_format=mode)
+                                            is_training=is_train, fused=True, data_format=mode, updates_collections=None)
 
 
 def linear(x, dim, bias, bias_start=0., scope="linear"):
