@@ -44,7 +44,6 @@ def confirm(prompt=None, resp=False):
 
 def flatten_idx(position, size):
     """
-
     """
 
     (x, y) = position
@@ -53,7 +52,6 @@ def flatten_idx(position, size):
 
 def unflatten_idx(idx, size):
     """
-
     """
 
     x, y = divmod(idx, size)
@@ -66,7 +64,7 @@ def _parse_sgf_move(node_value):
     """
 
     if node_value == '' or node_value == 'tt':
-        return go.PASS
+        return go.PASS_MOVE
     else:
         # GameState expects (x, y) where x is column and y is row
         col = LETTERS.index(node_value[0].upper())
@@ -142,7 +140,7 @@ def save_gamestate_to_sgf(gamestate, path, filename, black_player_name='Unknown'
         # Move color prefix
         str_list.append(';{}'.format(color))
         # Move coordinates
-        if move is go.PASS:
+        if move is go.PASS_MOVE:
             str_list.append('[tt]')
         else:
             str_list.append('[{}{}]'.format(LETTERS[move[0]].lower(), LETTERS[move[1]].lower()))
@@ -154,11 +152,9 @@ def save_gamestate_to_sgf(gamestate, path, filename, black_player_name='Unknown'
 def sgf_iter_states(sgf_string, include_end=True):
     """
        Iterates over (GameState, move, player) tuples in the first game of the given SGF file.
-
        Ignores variations - only the main line is returned.  The state object is
        modified in-place, so don't try to, for example, keep track of it through
        time
-
        If include_end is False, the final tuple yielded is the penultimate state,
        but the state will still be left in the final position at the end of
        iteration because 'gs' is modified in-place the state. See sgf_to_gamestate
@@ -195,7 +191,7 @@ def sgf_iter_states(sgf_string, include_end=True):
             # update state to n+1
             gs.do_move(move, player)
     if include_end:
-        yield (gs, go.PASS, None, 0)
+        yield (gs, go.PASS_MOVE, None, 0)
 
 
 def plot_network_output(scores, board, history, out_directory, output_file,
@@ -286,7 +282,7 @@ def plot_network_output(scores, board, history, out_directory, output_file,
     # Place red marker on last move if it exists
     if len(history) != 0:
         # If last move was not pass
-        if history[-1] != go.PASS:
+        if history[-1] != go.PASS_MOVE:
             last_move = history[-1]
             x_coord = last_move[0] + 1
             y_coord = last_move[1] + 1

@@ -387,6 +387,10 @@ class GameState(object):
         self.history = []
         self.board_history = [np.zeros((self.size, self.size), dtype=int) for _ in range(self.history_length - 1)]
 
+    def place_handicap_stone(self, action, color=BLACK):
+        self.handicaps.append(action)
+        self.do_move(action, color)
+
     def get_current_player(self):
         """Returns the color of the player who will make the next move.
         """

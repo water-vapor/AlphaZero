@@ -54,7 +54,10 @@ class GameConverter:
                 raise SizeMismatchError()
 
             # Generate features even for pass moves, since the history is different
+            # Pass move is represented as (19, 0)
             nn_input = self.feature_processor.state_to_tensor(state)
+            if move == go.PASS_MOVE:
+                move = (19, 0)
             yield (nn_input, move, result)
 
     def sgfs_to_hdf5(self, sgf_files, hdf5_file, bd_size=19, ignore_errors=True, verbose=False):
