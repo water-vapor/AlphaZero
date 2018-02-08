@@ -60,7 +60,7 @@ class Network(object):
         else:
             self.sess.run(tf.global_variables_initializer())
 
-    def update(self, data):
+    def update(self, data, lr=None):
         '''
         Update the model parameters.
 
@@ -74,7 +74,7 @@ class Network(object):
         global_step = self.get_global_step()
         if global_step % 1000 == 0:
             learning_scheme = self.config["learning_rate"]
-            divides = sorted(list(learning_scheme))
+            divides = sorted([int(value) for value in learning_scheme.keys()])
             current = 0
             for element in divides:
                 if element < global_step:
@@ -93,7 +93,7 @@ class Network(object):
             feed_dict[model.p] = data[1][start_idx: end_idx]
             feed_dict[model.v] = data[2][start_idx: end_idx]
             feed_dict[model.is_train] = True
-        feed_dict[self.lr] = self.learning_rate
+        feed_dict[self.lr] = self.learning_rate if lr is None else lr
         loss, train_op = self.sess.run(
             [self.loss, self.train_op], feed_dict=feed_dict)
         return loss

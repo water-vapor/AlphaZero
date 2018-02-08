@@ -15,7 +15,9 @@ go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
 with open(go_config_path) as c:
     game_config = yaml.load(c)
 
-supervised_config = os.path.join("AlphaZero", "config", "supervised.yaml")
+supervised_config_path = os.path.join("AlphaZero", "config", "supervised.yaml")
+with open(supervised_config_path) as fh:
+    supervised_config = yaml.load(fh)
 np.set_printoptions(threshold=np.nan)
 
 
@@ -107,6 +109,8 @@ def run_training(cmd_line_args=None):
     parser.add_argument(
         "--log_iter", help="Number of steps to record training loss", type=int, default=100)
     parser.add_argument(
+        "--patience", help="Patience of learning rate decay", type=int, default=2)
+    parser.add_argument(
         "--num_batches", help="Number of batches to evaluate the network", type=int, default=100)
     parser.add_argument("--train-val-test",
                         help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
@@ -139,9 +143,12 @@ def run_training(cmd_line_args=None):
     val_indices = shuffle_indices[n_train_data: n_train_data + n_val_data]
     test_indices = shuffle_indices[n_train_data + n_val_data:]
     model = Network(game_config, args.num_gpu,
-                    config_file=supervised_config, mode="NCHW")
+                    config_file=supervised_config_path, mode="NCHW")
     writer = tf.summary.FileWriter(args.log_dir)
     total_batches = len(train_indices) // args.minibatch
+    patience = 0
+    best_val_loss = 1e30
+    lr = float(supervised_config["learning_rate"][0])
     for epoch in range(args.epochs):
         train_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],
@@ -152,9 +159,9 @@ def run_training(cmd_line_args=None):
             flip=True,
         )
         print("Epoch {}".format(epoch))
-        for batch in tqdm(train_data_generator, total=total_batches):
+        for batch in tqdm(train_data_generator, total=total_batches, ascii=True):
             global_step = model.get_global_step() + 1
-            loss = model.update(batch)
+            loss = model.update(batch, lr=lr)
             if global_step % args.log_iter == 0:
                 loss_sum = tf.Summary(value=[tf.Summary.Value(
                     tag="model/loss", simple_value=loss), ])
@@ -183,6 +190,15 @@ def run_training(cmd_line_args=None):
             model, val_data_generator, tag="val", max_batch=args.num_batches)
         print("Dev loss {}, accuracy {}, mse {}".format(
             val_loss, val_accuracy, val_mse))
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            patience = 0
+        else:
+            patience += 1
+        if patience >= args.patience:
+            patience = 0
+            best_val_loss = val_loss
+            lr /= 5
         for summ in chain(val_sum, eval_sum):
             writer.add_summary(summ, global_step)
         writer.flush()
