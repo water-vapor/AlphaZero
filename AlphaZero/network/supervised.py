@@ -15,6 +15,7 @@ go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
 with open(go_config_path) as c:
     game_config = yaml.load(c)
 
+supervised_config = os.path.join("AlphaZero", "config", "supervised.yaml")
 np.set_printoptions(threshold=np.nan)
 
 
@@ -137,9 +138,8 @@ def run_training(cmd_line_args=None):
     eval_indices = shuffle_indices[0: n_train_data]
     val_indices = shuffle_indices[n_train_data: n_train_data + n_val_data]
     test_indices = shuffle_indices[n_train_data + n_val_data:]
-    config_file = os.path.join("AlphaZero", "network", "supervised.yaml")
     model = Network(game_config, args.num_gpu,
-                    config_file=config_file, mode="NCHW")
+                    config_file=supervised_config, mode="NCHW")
     writer = tf.summary.FileWriter(args.log_dir)
     total_batches = len(train_indices) // args.minibatch
     for epoch in range(args.epochs):
