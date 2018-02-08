@@ -47,16 +47,16 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
     for data_idx in indices:
         state = np.array([plane for plane in state_dataset[data_idx]])
         h, w = action_dataset[data_idx]
-        action = convert_action(action_dataset[data_idx], game_size)
         if flip:
-            flip_h = random.choice([True, False])
-            flip_w = random.choice([True, False])
-            if flip_h:
-                state = np.flip(state, axis=1)
-                h = game_size - 1 - h
-            if flip_w:
-                state = np.flip(state, axis=2)
-                w = game_size - 1 - w
+            if h != game_size or w != 0:
+                flip_h = random.choice([True, False])
+                flip_w = random.choice([True, False])
+                if flip_h:
+                    state = np.flip(state, axis=1)
+                    h = game_size - 1 - h
+                if flip_w:
+                    state = np.flip(state, axis=2)
+                    w = game_size - 1 - w
         action = convert_action((h, w), game_size)
         result = result_dataset[data_idx]
         Xbatch[batch_idx] = state
