@@ -21,7 +21,7 @@ f = game_config['history_step'] * \
 p = game_config['flat_move_output']
 
 start = time.time()
-for _ in tqdm(range(num_iters)):
+for _ in tqdm(range(num_iters), ascii=True):
     state = np.random.normal(size=(batch_size, f, w, h))
     action = np.random.normal(size=(batch_size, p))
     result = np.random.normal(size=(batch_size,))
@@ -30,7 +30,7 @@ end = time.time()
 print("Average time of update per iter: {}".format((end - start) / num_iters))
 
 start = time.time()
-for _ in tqdm(range(num_iters)):
+for _ in tqdm(range(num_iters), ascii=True):
     state = np.random.normal(size=(batch_size, f, h, w))
     test_net.response((state,))
 end = time.time()

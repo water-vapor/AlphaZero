@@ -1,6 +1,20 @@
 import tensorflow as tf
 
 
+def batch_split(num, *args):
+    ress = []
+    for arg in args:
+        res = []
+        batch = arg.shape[0]
+        piece = batch // num
+        for idx in range(num):
+            start = idx * piece
+            end = (idx + 1) * piece if idx != num - 1 else batch
+            res.append(arg[start: end])
+        ress.append(res)
+    return zip(*ress)
+
+
 def batch_norm(x, config, is_train=True, scope="bn", mode="NHWC"):
     with tf.variable_scope(scope):
         return tf.contrib.layers.batch_norm(x, decay=config["batch_decay"], center=True, scale=True,

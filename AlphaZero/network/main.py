@@ -3,7 +3,7 @@ import tensorflow as tf
 import yaml
 
 from AlphaZero.network.model import get_multi_models
-from AlphaZero.network.util import average_gradients
+from AlphaZero.network.util import average_gradients, batch_split
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 
@@ -82,16 +82,10 @@ class Network(object):
             self.learning_rate = learning_scheme[current]
 
         feed_dict = {}
-        batch = data[0].shape[0]
-        piece = batch // self.num_gpu
-        for idx, model in enumerate(self.models):
-            start_idx = idx * piece
-            end_idx = (idx + 1) * piece
-            if idx == self.num_gpu - 1:
-                end_idx = batch
-            feed_dict[model.x] = data[0][start_idx: end_idx]
-            feed_dict[model.p] = data[1][start_idx: end_idx]
-            feed_dict[model.v] = data[2][start_idx: end_idx]
+        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
+            feed_dict[model.x] = batch[0]
+            feed_dict[model.p] = batch[1]
+            feed_dict[model.v] = batch[2]
             feed_dict[model.is_train] = True
         feed_dict[self.lr] = self.learning_rate if lr is None else lr
         loss, train_op = self.sess.run(
@@ -109,14 +103,8 @@ class Network(object):
                 R_v: expected value of current state, numpy array of shape [None]
         '''
         feed_dict = {}
-        batch = data[0].shape[0]
-        piece = batch // self.num_gpu
-        for idx, model in enumerate(self.models):
-            start_idx = idx * piece
-            end_idx = (idx + 1) * piece
-            if idx == self.num_gpu - 1:
-                end_idx = batch
-            feed_dict[model.x] = data[0][start_idx: end_idx]
+        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
+            feed_dict[model.x] = batch[0]
             feed_dict[model.is_train] = False
         R_p, R_v = self.sess.run([self.R_p, self.R_v], feed_dict=feed_dict)
         return R_p, R_v
@@ -135,16 +123,10 @@ class Network(object):
                 R_v: expected value of current state, numpy array of shape [None]
         '''
         feed_dict = {}
-        batch = data[0].shape[0]
-        piece = batch // self.num_gpu
-        for idx, model in enumerate(self.models):
-            start_idx = idx * piece
-            end_idx = (idx + 1) * piece
-            if idx == self.num_gpu - 1:
-                end_idx = batch
-            feed_dict[model.x] = data[0][start_idx: end_idx]
-            feed_dict[model.p] = data[1][start_idx: end_idx]
-            feed_dict[model.v] = data[2][start_idx: end_idx]
+        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
+            feed_dict[model.x] = batch[0]
+            feed_dict[model.p] = batch[1]
+            feed_dict[model.v] = batch[2]
             feed_dict[model.is_train] = False
         loss, R_p, R_v = self.sess.run(
             [self.loss, self.R_p, self.R_v], feed_dict=feed_dict)

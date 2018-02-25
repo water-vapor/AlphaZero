@@ -100,7 +100,7 @@ class Model(object):
 
     def _build_loss(self):
         v_loss = tf.reduce_mean(tf.square(self.R_v - self.v))
-        p_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+        p_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
             logits=self.logits, labels=self.p))
         r_loss = sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         self.loss = p_loss + v_loss * self.config["MSE_scaling"] + r_loss
