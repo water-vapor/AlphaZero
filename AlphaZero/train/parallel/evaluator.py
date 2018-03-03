@@ -26,7 +26,7 @@ class Evaluator:
 
     def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, game_config, **kwargs):
         printlog('create evaluator')
-        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+        with open('AlphaZero/config/sys_config.yaml') as f:
             ext_config = yaml.load(f)['evaluator']
 
         self.num_games = ext_config['num_games']

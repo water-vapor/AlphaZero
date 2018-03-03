@@ -1,4 +1,5 @@
 import AlphaZero.mcts as MCTS
+import yaml
 
 
 def get_move_single(state, nn_eval, game_config):
@@ -35,8 +36,11 @@ class Player:
             player_2.ack(move)
         :param nn_eval: NNEvaluator class.
         """
+        with open('AlphaZero/config/player.yaml') as f:
+            ext_config = yaml.load(f)
+
         self._game_config = game_config
-        self.mcts = MCTS.MCTSearch(nn_eval.eval, self._game_config, max_playout=5)
+        self.mcts = MCTS.MCTSearch(nn_eval.eval, self._game_config, max_playout=ext_config['max_playout'])
 
     def think(self, state, dirichlet=False):
         move, probs = self.mcts.calc_move_with_probs(state, dirichlet)

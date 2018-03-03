@@ -22,7 +22,7 @@ class Optimizer:
         self.s_conn = s_conn
         self.data_queue = data_queue
 
-        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+        with open('AlphaZero/config/sys_config.yaml') as f:
             ext_config = yaml.load(f)['optimizer']
         self.num_ckpt = ext_config['num_ckpt']
         self.num_steps = ext_config['num_steps']

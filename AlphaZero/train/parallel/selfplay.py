@@ -21,7 +21,7 @@ def kill_children():
 class Selfplay:
     def __init__(self, nn_eval, r_conn, data_queue, game_config, **kwargs):
         printlog('create selfplay')
-        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+        with open('AlphaZero/config/sys_config.yaml') as f:
             ext_config = yaml.load(f)['selfplay']
 
         self.nn_eval = nn_eval

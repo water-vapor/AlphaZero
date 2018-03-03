@@ -56,7 +56,7 @@ class Network(object):
 
         if pretrained:
             self.saver.restore(
-                self.sess, tf.train.latest_checkpoint(self.config.save_dir))
+                self.sess, tf.train.latest_checkpoint(self.config['save_dir']))
         else:
             self.sess.run(tf.global_variables_initializer())
 
