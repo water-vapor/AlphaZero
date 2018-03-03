@@ -104,6 +104,10 @@ class MCTreeNode(object):
     def prior_prob(self):
         return self._prior_prob
 
+    @prior_prob.setter
+    def prior_prob(self, value):
+        self._prior_prob = value
+
 
 class MCTSearch(object):
     """ Create a MC search tree.

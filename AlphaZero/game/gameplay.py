@@ -29,7 +29,7 @@ class Game:
         self._preproc = importlib.import_module(game_config['state_converter_path'])
         self._state_tensor_converter = self._preproc.StateTensorConverter(game_config)
 
-        with open('AlphaZero/game/gameplay.yaml') as f:
+        with open('AlphaZero/config/gameplay.yaml') as f:
             ext_config = yaml.load(f)
         self.dirichlet_before = ext_config['dirichlet_before']
         self.log_iter = ext_config['log_iter']

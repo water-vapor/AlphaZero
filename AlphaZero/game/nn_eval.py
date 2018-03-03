@@ -117,7 +117,7 @@ class NNEvaluator:
         listeners. They are NN to be evaluated and best NN so far.
         """
         printlog('create network')
-        self.net = network.Network(game_config, config_file="AlphaZero/config/reinforce.yaml",
+        self.net = network.Network(game_config,
                                    cluster=self.cluster, job=self.job)
         if self.load_file is not None:
             self.net.load(self.load_file)

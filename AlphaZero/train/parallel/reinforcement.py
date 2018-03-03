@@ -32,7 +32,7 @@ if __name__ == '__main__':
         # game_env = importlib.import_module(config['env_path'])
         # game_converter = importlib.import_module(config['game_converter_path'])
         # state_converter = importlib.import_module(config['state_converter_path'])
-    with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+    with open('AlphaZero/config/sys_config.yaml') as f:
         ext_config = yaml.load(f)['reinforcement']
 
     mp.freeze_support()

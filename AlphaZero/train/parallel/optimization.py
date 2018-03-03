@@ -42,7 +42,7 @@ class Optimizer:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def run(self):
-        self.net = network.Network(self.game_config, config_file="AlphaZero/network/reinforce.yaml",
+        self.net = network.Network(self.game_config,
                                    cluster=self.cluster, job=self.job)
 
         self.data_queue.start_training.acquire()
@@ -62,7 +62,7 @@ class Datapool:
         self.data_pool = None
         self.start_training = mp.Semaphore(0)
 
-        with open('AlphaZero/train/parallel/sys_config.yaml') as f:
+        with open('AlphaZero/config/sys_config.yaml') as f:
             ext_config = yaml.load(f)['datapool']
         self.pool_size = ext_config['pool_size']
         self.start_data_size = ext_config['start_data_size']
