@@ -1,0 +1,46 @@
+cluster:
+  'curr':
+    - 'localhost:3333'
+  'chal':
+    - 'localhost:3334'
+  'best':
+    - 'localhost:3335'
+
+datapool:
+  pool_size: 5000
+  start_data_size: 100
+  conn_num: 20
+
+evaluator:
+  num_games: 10
+  num_worker: 2
+  gameplay:
+    dirichlet_before: 30
+    log_iter: 30
+    player:
+      max_playout: 5
+
+selfplay:
+  num_worker: 2
+  gameplay:
+    dirichlet_before: 30
+    log_iter: 30
+    player:
+      max_playout: 5
+
+optimizer:
+  num_ckpt: 100
+  num_steps: 700000
+  batch_size: 8
+  num_gpu: 1
+  job: 'curr'
+
+chal:
+  max_batch_size: 32
+  num_gpu: 1
+  job: 'chal'
+
+best:
+  max_batch_size: 32
+  num_gpu: 1
+  job: 'best'

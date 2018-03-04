@@ -32,23 +32,13 @@ if __name__ == '__main__':
         # game_env = importlib.import_module(config['env_path'])
         # game_converter = importlib.import_module(config['game_converter_path'])
         # state_converter = importlib.import_module(config['state_converter_path'])
-    with open('AlphaZero/config/sys_config.yaml') as f:
-        ext_config = yaml.load(f)['reinforcement']
+    with open('AlphaZero/config/rl_sys_config.yaml') as f:
+        ext_config = yaml.load(f)
+
+    cluster = tf.train.ClusterSpec(ext_config['cluster'])
 
     mp.freeze_support()
     # mp.set_start_method('spawn')
-
-    cluster = tf.train.ClusterSpec({
-        'curr': [
-            'localhost:3333'
-        ],
-        'chal': [
-            'localhost:3334'
-        ],
-        'best': [
-            'localhost:3335'
-        ]
-    })
 
     # printlog('create current net')
     # curr_net = network.network(config_file="AlphaZero/network/reinforce.yaml", cluster=cluster, job='curr')
@@ -60,12 +50,12 @@ if __name__ == '__main__':
     printlog('create data pool')
     # dgen_opti_q = mp.Queue(8)
 
-    with optimization.Datapool() as dgen_opti_q, \
-            nn_eval.NNEvaluator(cluster, 'chal', game_config, max_batch_size=ext_config['chal_max_batch_size'], name='chal_nn_eval') as nn_eval_chal, \
-            nn_eval.NNEvaluator(cluster, 'best', game_config, max_batch_size=ext_config['best_max_batch_size'], name='best_nn_eval') as nn_eval_best, \
-            optimization.Optimizer(cluster, 'curr', opti_eval_s, dgen_opti_q, game_config) as opti, \
-            evaluator.Evaluator(nn_eval_chal, nn_eval_best, opti_eval_r, eval_dgen_s, game_config) as eval_, \
-            selfplay.Selfplay(nn_eval_best, eval_dgen_r, dgen_opti_q, game_config) as dgen:
+    with optimization.Datapool(ext_config['datapool']) as dgen_opti_q, \
+            nn_eval.NNEvaluator(cluster, game_config, ext_config['chal']) as nn_eval_chal, \
+            nn_eval.NNEvaluator(cluster, game_config, ext_config['best']) as nn_eval_best, \
+            optimization.Optimizer(cluster, opti_eval_s, dgen_opti_q, game_config, ext_config['optimizer']) as opti, \
+            evaluator.Evaluator(nn_eval_chal, nn_eval_best, opti_eval_r, eval_dgen_s, game_config, ext_config['evaluator']) as eval_, \
+            selfplay.Selfplay(nn_eval_best, eval_dgen_r, dgen_opti_q, game_config, ext_config['selfplay']) as dgen:
 
         # opti.run()
         while True:

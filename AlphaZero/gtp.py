@@ -7,12 +7,12 @@ import numpy as np
 
 with open('AlphaZero/config/go.yaml') as c:
     game_config = yaml.load(c)
-with open('AlphaZero/config/player.yaml') as f:
-    player_config = yaml.load(f)
+with open('AlphaZero/config/gtp.yaml') as f:
+    ext_config = yaml.load(f)
 _state_tensor_converter = _preproc.StateTensorConverter(game_config)
 _tensor_action_converter = _preproc.TensorActionConverter(game_config)
 
-net = network.Network(game_config, pretrained=True)
+net = network.Network(game_config, config_file='AlphaZero/config/gtp.yaml', pretrained=ext_config['pretrained'])
 
 def eval(state):
     state_np = _state_tensor_converter.state_to_tensor(state)
@@ -20,9 +20,8 @@ def eval(state):
     return _tensor_action_converter.tensor_to_action(result_np[0][0]), result_np[1][0]
 
 def get_move(state):
-    mcts = MCTS.MCTSearch(eval, game_config, max_playout=player_config['max_playout'])
+    mcts = MCTS.MCTSearch(eval, game_config, max_playout=ext_config['max_playout'])
     move, _ = mcts.calc_move_with_probs(state)
-    print(move)
     return move
 
 gtp_wrapper.run_gtp(get_move)

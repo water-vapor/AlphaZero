@@ -9,14 +9,14 @@ from AlphaZero.train.parallel.util import *
 
 class Game:
 
-    def __init__(self, nn_eval_1, nn_eval_2, game_config):
+    def __init__(self, nn_eval_1, nn_eval_2, game_config, ext_config):
         """
         Set NN evaluator and game board.
         :param nn_eval_1: NNEvaluator class. This class doesn't create evaluator.
         :param nn_eval_2: NNEvaluator class.
         """
-        self.player_1 = player.Player(nn_eval_1, game_config)
-        self.player_2 = player.Player(nn_eval_2, game_config)
+        self.player_1 = player.Player(nn_eval_1, game_config, ext_config['player'])
+        self.player_2 = player.Player(nn_eval_2, game_config, ext_config['player'])
         self._game_env = importlib.import_module(game_config['env_path'])
         self.state = self._game_env.GameState()
         self.winner = None
@@ -29,8 +29,6 @@ class Game:
         self._preproc = importlib.import_module(game_config['state_converter_path'])
         self._state_tensor_converter = self._preproc.StateTensorConverter(game_config)
 
-        with open('AlphaZero/config/gameplay.yaml') as f:
-            ext_config = yaml.load(f)
         self.dirichlet_before = ext_config['dirichlet_before']
         self.log_iter = ext_config['log_iter']
 

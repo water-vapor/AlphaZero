@@ -3,6 +3,7 @@ import traceback as tb
 
 import numpy as np
 import yaml
+import tensorflow as tf
 
 import AlphaZero.network.main as network
 from AlphaZero.train.parallel.util import *
@@ -14,22 +15,21 @@ def kill_children():
 
 
 class Optimizer:
-    def __init__(self, cluster, job, s_conn, data_queue, game_config, **kwargs):
+    def __init__(self, cluster, s_conn, data_queue, game_config, ext_config):
         printlog('create optimizer')
         self.cluster = cluster
-        self.job = job
+        self.job = ext_config['job']
         self.net = None
         self.s_conn = s_conn
         self.data_queue = data_queue
 
-        with open('AlphaZero/config/sys_config.yaml') as f:
-            ext_config = yaml.load(f)['optimizer']
         self.num_ckpt = ext_config['num_ckpt']
         self.num_steps = ext_config['num_steps']
         self.batch_size = ext_config['batch_size']
+        self.num_gpu = ext_config['num_gpu']
 
         atexit.register(kill_children)
-        self.proc = mp.Process(target=self.run, name='opti')
+        self.proc = mp.Process(target=self.run, name='optimizer')
 
         self.game_config = game_config
 
@@ -42,7 +42,7 @@ class Optimizer:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def run(self):
-        self.net = network.Network(self.game_config,
+        self.net = network.Network(self.game_config, self.num_gpu,
                                    cluster=self.cluster, job=self.job)
 
         self.data_queue.start_training.acquire()
@@ -58,12 +58,10 @@ class Optimizer:
 
 
 class Datapool:
-    def __init__(self):
+    def __init__(self, ext_config):
         self.data_pool = None
         self.start_training = mp.Semaphore(0)
 
-        with open('AlphaZero/config/sys_config.yaml') as f:
-            ext_config = yaml.load(f)['datapool']
         self.pool_size = ext_config['pool_size']
         self.start_data_size = ext_config['start_data_size']
 

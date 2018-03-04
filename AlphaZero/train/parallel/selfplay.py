@@ -19,10 +19,8 @@ def kill_children():
 
 
 class Selfplay:
-    def __init__(self, nn_eval, r_conn, data_queue, game_config, **kwargs):
+    def __init__(self, nn_eval, r_conn, data_queue, game_config, ext_config):
         printlog('create selfplay')
-        with open('AlphaZero/config/sys_config.yaml') as f:
-            ext_config = yaml.load(f)['selfplay']
 
         self.nn_eval = nn_eval
         self.r_conn = r_conn
@@ -33,6 +31,7 @@ class Selfplay:
         self.num_worker = ext_config['num_worker']
         self.worker_lim = mp.Semaphore(self.num_worker)
         self.game_config = game_config
+        self.ext_config = ext_config
 
     def __enter__(self):
         printlog('selfplay: start proc')
@@ -50,7 +49,7 @@ class Selfplay:
         # process comm
         self.nn_eval.rwlock.r_acquire()
         # start game
-        game = _gameplay.Game(self.nn_eval, self.nn_eval, self.game_config)
+        game = _gameplay.Game(self.nn_eval, self.nn_eval, self.game_config, self.ext_config['gameplay'])
         game.start()
         # get game history
         # convert

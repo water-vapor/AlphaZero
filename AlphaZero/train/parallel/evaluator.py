@@ -24,10 +24,8 @@ def kill_children():
 
 class Evaluator:
 
-    def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, game_config, **kwargs):
+    def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, game_config, ext_config):
         printlog('create evaluator')
-        with open('AlphaZero/config/sys_config.yaml') as f:
-            ext_config = yaml.load(f)['evaluator']
 
         self.num_games = ext_config['num_games']
         self.nn_eval_chal = nn_eval_chal
@@ -44,6 +42,7 @@ class Evaluator:
         self.finished_worker = mp.Value('i', 0)
 
         self.game_config = game_config
+        self.ext_config = ext_config
 
     def __enter__(self):
         printlog('evaluator: start proc')
@@ -63,9 +62,10 @@ class Evaluator:
         self.nn_eval_best.rwlock.r_acquire()
 
         printlog('begin')
-        game = _gameplay.Game(self.nn_eval_chal,
-                                   self.nn_eval_best) if color_of_new == _game_env.BLACK else _gameplay.Game(
-            self.nn_eval_best, self.nn_eval_chal)
+        if color_of_new == _game_env.BLACK:
+            game = _gameplay.Game(self.nn_eval_chal, self.nn_eval_best, self.game_config, self.ext_config['gameplay'])
+        else:
+            game = _gameplay.Game(self.nn_eval_best, self.nn_eval_chal, self.game_config, self.ext_config['gameplay'])
         winner = game.start()
         if winner == color_of_new:
             self.count()

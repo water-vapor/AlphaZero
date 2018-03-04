@@ -5,6 +5,7 @@ from queue import Empty as EmptyExc
 
 import numpy as np
 import yaml
+import tensorflow as tf
 
 # import AlphaZero.processing.go.state_converter as preproc
 import AlphaZero.network.main as network
@@ -45,24 +46,23 @@ class NNEvaluator:
             pass
     """
 
-    def __init__(self, cluster, job, game_config, load_file=None, max_batch_size=32,
-                 **kwargs):  # TODO: use proper default value
+    def __init__(self, cluster, game_config, ext_config):  # TODO: use proper default value
         """
         :param net: network class. This class doesn't create network.
         :param max_batch_size: Int
         """
         printlog('create nn_eval')
         self.cluster = cluster
-        self.job = job
-        self.max_batch_size = max_batch_size
-        self.load_file = load_file
-        self.net = None
+        self.job = ext_config['job']
+        self.max_batch_size = ext_config['max_batch_size']
+        self.load_file = ext_config.get('load_file')
+        self.num_gpu = ext_config['num_gpu']
         atexit.register(kill_children)  # kill all the children when the program exit
-        self.listen_proc = mp.Process(target=self.listen, name=kwargs.get('name', 'nn_eval') + '_listener')
+        self.listen_proc = mp.Process(target=self.listen, name=self.job + '_nn_eval')
 
         self.rwlock = RWLock()
 
-        self.rcpt = Reception(max_batch_size * 2)
+        self.rcpt = Reception(self.max_batch_size * 2)
         self.sl_rcpt = Reception(5)
 
     def __enter__(self):
@@ -117,7 +117,7 @@ class NNEvaluator:
         listeners. They are NN to be evaluated and best NN so far.
         """
         printlog('create network')
-        self.net = network.Network(game_config,
+        self.net = network.Network(game_config, num_gpu=self.num_gpu,
                                    cluster=self.cluster, job=self.job)
         if self.load_file is not None:
             self.net.load(self.load_file)

@@ -23,7 +23,7 @@ def play_single(state, nn_eval, game_config):
 
 class Player:
 
-    def __init__(self, nn_eval, game_config):
+    def __init__(self, nn_eval, game_config, ext_config):
         """
         Create MCT. MCT will be reused.
         Data consistency is NOT guaranteed because GameState of certain game is associate with this MCT but this class
@@ -36,8 +36,6 @@ class Player:
             player_2.ack(move)
         :param nn_eval: NNEvaluator class.
         """
-        with open('AlphaZero/config/player.yaml') as f:
-            ext_config = yaml.load(f)
 
         self._game_config = game_config
         self.mcts = MCTS.MCTSearch(nn_eval.eval, self._game_config, max_playout=ext_config['max_playout'])
