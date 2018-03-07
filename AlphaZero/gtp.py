@@ -12,7 +12,7 @@ with open('AlphaZero/config/gtp.yaml') as f:
 _state_tensor_converter = _preproc.StateTensorConverter(game_config)
 _tensor_action_converter = _preproc.TensorActionConverter(game_config)
 
-net = network.Network(game_config, config_file='AlphaZero/config/gtp.yaml', pretrained=ext_config['pretrained'])
+net = network.Network(game_config, config_file='AlphaZero/config/gtp.yaml', pretrained=ext_config['pretrained'], mode='NCHW')
 
 def eval(state):
     state_np = _state_tensor_converter.state_to_tensor(state)

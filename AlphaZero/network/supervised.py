@@ -119,6 +119,8 @@ def run_training(cmd_line_args=None):
         "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="log")
     parser.add_argument(
         "--save_dir", help="Directory for storing the latest model", type=str, default="model")
+    parser.add_argument(
+        "--resume", "-R", help="load checkpoint", type=bool, default=False)
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -142,7 +144,7 @@ def run_training(cmd_line_args=None):
     eval_indices = shuffle_indices[0: n_train_data]
     val_indices = shuffle_indices[n_train_data: n_train_data + n_val_data]
     test_indices = shuffle_indices[n_train_data + n_val_data:]
-    model = Network(game_config, args.num_gpu,
+    model = Network(game_config, args.num_gpu, pretrained=args.resume,
                     config_file=supervised_config_path, mode="NCHW")
     writer = tf.summary.FileWriter(args.log_dir)
     total_batches = len(train_indices) // args.minibatch

@@ -2,6 +2,8 @@ import tensorflow as tf
 
 from AlphaZero.network.util import batch_norm, linear
 
+import AlphaZero.workaround.softmax_v2 as softmax_v2
+
 
 def get_multi_models(num_gpu, config, game_config, mode="NHWC"):
     models = []
@@ -72,7 +74,7 @@ class Model(object):
                     R1, config, self.is_train, scope="B1", mode=self.mode))
                 R2 = tf.nn.conv2d(
                     R1, W2, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
-                R2 = batch_norm(R2, config, self.is_train, scope="B2")
+                R2 = batch_norm(R2, config, self.is_train, scope="B2", mode=self.mode)
                 R = _activation(tf.add(R, R2))
 
         with tf.variable_scope("policy_head"):
@@ -100,7 +102,7 @@ class Model(object):
 
     def _build_loss(self):
         v_loss = tf.reduce_mean(tf.square(self.R_v - self.v))
-        p_loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
+        p_loss = tf.reduce_mean(softmax_v2.softmax_cross_entropy_with_logits_v2(
             logits=self.logits, labels=self.p))
         r_loss = sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
         self.loss = p_loss + v_loss * self.config["MSE_scaling"] + r_loss
