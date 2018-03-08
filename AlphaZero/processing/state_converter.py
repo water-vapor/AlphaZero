@@ -161,4 +161,4 @@ class ReverseTransformer(object):
         """
         if transform_id // 4 == 1:
             self.lr_reflection(action_prob)
-            self.reverse_nprot90(action_prob, transform_id % 4)
+        self.reverse_nprot90(action_prob, transform_id % 4)
