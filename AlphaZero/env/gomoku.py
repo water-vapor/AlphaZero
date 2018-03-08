@@ -159,14 +159,16 @@ class GameState(object):
             Arguments:
                 transform_id: integer in range [0, 7]
         """
-        # List of boards to transform
-        boards_to_transform = self.board_history + [self.board]
-        for b in boards_to_transform:
+        def _transform(b):
             # Performs reflection
             if transform_id // 4 == 1:
                 b = np.fliplr(b)
             # Performs rotation
             b = np.rot90(b, transform_id % 4)
+            return b
+        # List of boards to transform
+        self.board = _transform(self.board)
+        self.board_history = [_transform(b) for b in self.board_history]
 
 
 class IllegalMove(Exception):
