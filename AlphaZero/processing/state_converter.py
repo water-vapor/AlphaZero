@@ -81,6 +81,8 @@ class TensorActionConverter(object):
     def __init__(self, config):
         self._wid = config['board_width']
         self._hei = config['board_height']
+        # The games allowing pass moves have an extra output position for pass move
+        self._allow_pass_move = (config['flat_move_output'] - self._wid * self._hei == 1)
 
     def tensor_to_action(self, tensor):
         """
@@ -92,6 +94,9 @@ class TensorActionConverter(object):
             a list of (action, prob)
         """
         res = [((i // self._wid, i % self._hei), tensor[i]) for i in range(self._wid * self._hei)]
+        if self._allow_pass_move:
+            # Pass move is always represented as None, no need for extra import
+            res.append((None, tensor[self._wid * self._hei]))
 
         return res
 
@@ -109,6 +114,8 @@ class ReverseTransformer(object):
     def lr_reflection(self, action_prob):
         """ Flips the coordinate of action probability vector like np.fliplr
             Modification is made in place
+            Note that PASS_MOVE should be placed at the end of this vector
+ +          Condition check is disabled for efficiency
 
         Args:
             action_prob: action probabilities
