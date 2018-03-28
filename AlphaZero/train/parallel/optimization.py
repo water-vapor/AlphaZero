@@ -4,9 +4,11 @@ import traceback as tb
 import numpy as np
 import yaml
 import tensorflow as tf
+import h5py as h5
 
 import AlphaZero.network.main as network
 from AlphaZero.train.parallel.util import *
+from AlphaZero.network.supervised import shuffled_hdf5_batch_generator, evaluate
 
 
 def kill_children():
@@ -24,9 +26,16 @@ class Optimizer:
         self.data_queue = data_queue
 
         self.num_ckpt = ext_config['num_ckpt']
+        self.num_log = ext_config['num_log']
+        self.num_eval = ext_config['num_eval']
         self.num_steps = ext_config['num_steps']
         self.batch_size = ext_config['batch_size']
         self.num_gpu = ext_config['num_gpu']
+        self.load_path = ext_config.get('load_path')
+        self.log_dir = ext_config['log_dir']
+        self.eval_data_path = ext_config.get('eval_data_path')
+        self.train_val_test = ext_config['train_val_test']
+        self.eval_batch_size = ext_config['eval_batch_size']
 
         atexit.register(kill_children)
         self.proc = mp.Process(target=self.run, name='optimizer')
@@ -44,17 +53,44 @@ class Optimizer:
     def run(self):
         self.net = network.Network(self.game_config, self.num_gpu,
                                    cluster=self.cluster, job=self.job)
+        if self.load_path is not None:
+            self.net.load(self.load_path)
+
+        dataset = h5.File(self.eval_data_path)
+        n_total_data = len(dataset["states"])
+        n_val_data = int(self.train_val_test[1] * n_total_data)
+        n_val_data = n_val_data - (n_val_data % self.eval_batch_size)
+        shuffle_indices = np.random.permutation(n_total_data)
+        val_indices = shuffle_indices[0: n_val_data]
 
         self.data_queue.start_training.acquire()
-        printlog('optimizer: training loop begin')
+        printlog('training loop begin')
         for step in range(self.num_steps):
             data = self.data_queue.get(self.batch_size)
             self.net.update(data)
-            if step % 30 == 0:
+            if step % self.num_log == 0:
                 printlog('update iter', step)
+            if step % self.num_eval == 0:
+                self.eval_model(dataset, step, self.net, val_indices, self.eval_batch_size, self.log_dir)
             if (step + 1) % self.num_ckpt == 0:
                 self.net.save('./' + self.game_config['name'] + '_model/ckpt')  # TODO: use proper model name
                 self.s_conn.send(step + 1)
+
+    def eval_model(self, dataset, global_step, model, val_indices, minibatch, log_dir):
+
+        writer = tf.summary.FileWriter(log_dir)
+        val_data_generator = shuffled_hdf5_batch_generator(
+            dataset["states"],
+            dataset["actions"],
+            dataset["results"],
+            val_indices,
+            minibatch,
+        )
+        val_loss, val_accuracy, val_mse, val_sum = evaluate(
+            model, val_data_generator, tag="val")
+        for summ in val_sum:
+            writer.add_summary(summ, global_step)
+        writer.flush()
 
 
 class Datapool:

@@ -55,7 +55,7 @@ class NNEvaluator:
         self.cluster = cluster
         self.job = ext_config['job']
         self.max_batch_size = ext_config['max_batch_size']
-        self.load_file = ext_config.get('load_file')
+        self.load_path = ext_config.get('load_path')
         self.num_gpu = ext_config['num_gpu']
         atexit.register(kill_children)  # kill all the children when the program exit
         self.listen_proc = mp.Process(target=self.listen, name=self.job + '_nn_eval')
@@ -119,8 +119,9 @@ class NNEvaluator:
         printlog('create network')
         self.net = network.Network(game_config, num_gpu=self.num_gpu,
                                    cluster=self.cluster, job=self.job)
-        if self.load_file is not None:
-            self.net.load(self.load_file)
+        if self.load_path is not None:
+            printlog('load model')
+            self.net.load(self.load_path)
 
         thrd.Thread(target=self.sl_listen, name='sl_listener').start()
 
