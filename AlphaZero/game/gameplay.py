@@ -58,7 +58,7 @@ class Game:
             # TODO: other end game condition
 
         self.winner = self.state.get_winner()
-        printlog('end', self.state.stones_played)
+        printlog('end', self.state.turns)
         return self.winner
 
     def get_history(self):
