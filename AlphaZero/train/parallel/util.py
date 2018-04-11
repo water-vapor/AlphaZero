@@ -1,8 +1,9 @@
 import multiprocessing as mp
 import queue
 import threading as thrd
-from flask import Flask, request
-import requests
+import socket
+import pickle
+import time
 
 
 def printlog(*msg):
@@ -102,17 +103,21 @@ class Block_Conn:
         self.ack_s.send(True)
         return msg
 
-def HTTP_Pipe():
-    pass
-class HTTP_recv:
-    def __init__(self):
-        pass
+class Remote_Queue:
 
-    def recv(self):
-        pass
-class HTTP_send:
-    def __init__(self):
-        pass
+    def __init__(self, addr, port):
+        self.addr = addr
+        self.port = port
 
-    def send(self):
-        pass
+    def put(self, data):
+        client = socket.socket()
+        try:
+            client.connect((self.addr, self.port))
+            printlog('Connected to %s on port %s' % (self.addr, self.port))
+        except socket.error as e:
+            printlog('Connection to %s on port %s failed: %s' % (self.addr, self.port, e))
+            return
+        client.sendall(pickle.dumps(data))
+        client.shutdown(1)
+        client.close()
+        printlog('data sent')

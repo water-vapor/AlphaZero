@@ -130,7 +130,7 @@ class NNEvaluator:
             try:
                 reqs = []
                 for i in range(self.max_batch_size):
-                    block = i == 0
+                    block = i < self.num_gpu
                     reqs.append(self.rcpt.get(block))
             except EmptyExc:
                 pass

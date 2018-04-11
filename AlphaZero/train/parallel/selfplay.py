@@ -2,9 +2,15 @@ import atexit
 import importlib
 import traceback as tb
 import yaml
+import argparse
+import time
+import os
+
+import tensorflow as tf
 
 # import AlphaZero.game.go.gameplay as gameplay
 from AlphaZero.train.parallel.util import *
+import AlphaZero.game.nn_eval as nn_eval
 
 with open('AlphaZero/config/game.yaml') as f:
     game_selection = yaml.load(f)['game']
@@ -76,3 +82,32 @@ class Selfplay:
         while True:
             path = self.r_conn.recv()
             self.nn_eval.load('./' + self.game_config['name'] + '_model/ckpt-' + str(path))
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Data generator for trainer.')
+    parser.add_argument('addr', type=str, help='master address')
+    args = parser.parse_args()
+
+    with open('AlphaZero/config/game.yaml') as f:
+        game_selection = yaml.load(f)['game']
+    config_path = os.path.join('AlphaZero', 'config', game_selection + '.yaml')
+    if not os.path.exists(config_path):
+        raise NotImplementedError("{} game config file does not exist.".format(game_selection))
+    else:
+        with open(config_path) as c:
+            game_config = yaml.load(c)
+    with open('AlphaZero/config/rl_sys_config.yaml') as f:
+        ext_config = yaml.load(f)
+
+    cluster = tf.train.ClusterSpec({'best':['localhost:4335']})
+
+    mp.freeze_support()
+
+    eval_dgen_r, eval_dgen_s = Block_Pipe()
+    dgen_opti_q = Remote_Queue(args.addr, ext_config['datapool']['remote_port'])
+
+    with nn_eval.NNEvaluator(cluster, game_config, ext_config['best']) as nn_eval_best, \
+         Selfplay(nn_eval_best, eval_dgen_r, dgen_opti_q, game_config, ext_config['selfplay']) as dgen:
+
+        while True:
+            time.sleep(30)

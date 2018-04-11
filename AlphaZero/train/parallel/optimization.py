@@ -1,5 +1,7 @@
 import atexit
 import traceback as tb
+import socket
+import pickle
 
 import numpy as np
 import yaml
@@ -41,6 +43,7 @@ class Optimizer:
         self.proc = mp.Process(target=self.run, name='optimizer')
 
         self.game_config = game_config
+        self.writer = None
 
     def __enter__(self):
         self.proc.start()
@@ -78,7 +81,8 @@ class Optimizer:
 
     def eval_model(self, dataset, global_step, model, val_indices, minibatch, log_dir):
 
-        writer = tf.summary.FileWriter(log_dir)
+        if self.writer is None:
+            self.writer = tf.summary.FileWriter(log_dir)
         val_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],
             dataset["actions"],
@@ -89,8 +93,8 @@ class Optimizer:
         val_loss, val_accuracy, val_mse, val_sum = evaluate(
             model, val_data_generator, tag="val")
         for summ in val_sum:
-            writer.add_summary(summ, global_step)
-        writer.flush()
+            self.writer.add_summary(summ, global_step)
+        self.writer.flush()
 
 
 class Datapool:
@@ -100,19 +104,42 @@ class Datapool:
 
         self.pool_size = ext_config['pool_size']
         self.start_data_size = ext_config['start_data_size']
+        self.remote_port = ext_config['remote_port']
 
         conn_num = ext_config['conn_num']
         self.rcpt = Reception(conn_num)
 
         self.server = mp.Process(target=self.serve, name='data_pool_server')
+        self.remote_server = mp.Process(target=self.remote_rcv, name="data_pool_remote_rcv")
 
     def __enter__(self):
         self.server.start()
+        self.remote_server.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.server.terminate()
+        self.remote_server.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
+
+    def remote_rcv(self):
+        server_socket = socket.socket()
+        server_socket.bind(('', self.remote_port))
+
+        while True:
+            server_socket.listen(1)
+            printlog('waiting for a connection...')
+            client_connection, client_address = server_socket.accept()
+            printlog('connected to', client_address[0])
+            ultimate_buffer = b''
+            while True:
+                receiving_buffer = client_connection.recv(2**20)
+                if not len(receiving_buffer): break
+                ultimate_buffer += receiving_buffer
+            final_image = pickle.loads(ultimate_buffer)
+            client_connection.close()
+            printlog('frame received')
+            self.put(final_image)
 
     def serve(self):
         printlog('start')
@@ -130,6 +157,7 @@ class Datapool:
                     if self.data_pool[0].shape[0] > self.pool_size:
                         printlog('delete old data')
                         self.data_pool = [it[-self.pool_size:] for it in self.data_pool]
+                printlog('data size: '+str(self.data_pool[0].shape[0]))
                 if self.data_pool[0].shape[0] > self.start_data_size:
                     self.start_training.release()
                 s_conn.send('done')

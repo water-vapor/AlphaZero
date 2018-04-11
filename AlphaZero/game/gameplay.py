@@ -31,6 +31,7 @@ class Game:
 
         self.dirichlet_before = ext_config['dirichlet_before']
         self.log_iter = ext_config['log_iter']
+        self.max_turn = ext_config['max_turn']
 
     def start(self):
         """ Make the instance callable. Start playing.
@@ -38,7 +39,9 @@ class Game:
         Returns: Game winner. Definition is in go.py.
         """
         current_player = self.player_1
-        while not self.state.is_end_of_game:
+        while not (self.state.is_end_of_game
+                   or self.state.turns > self.max_turn):
+
             if self.state.turns % self.log_iter == 0:
                 printlog(str(self.state.turns), 'moves')
 
@@ -58,7 +61,7 @@ class Game:
             # TODO: other end game condition
 
         self.winner = self.state.get_winner()
-        printlog('end', self.state.turns)
+        printlog('end', self.winner)
         return self.winner
 
     def get_history(self):
