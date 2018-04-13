@@ -1,29 +1,35 @@
 from copy import deepcopy
 
 import numpy as np
+import yaml
 
 WHITE = -1
 BLACK = +1
 PASS_MOVE = None
 EMPTY = 0
 
+with open('AlphaZero/config/mnk.yaml') as f:
+    game_config = yaml.load(f)
+
 
 class GameState(object):
-    """ Game state of Gomoku Game.
+    """ Game state of mnk Game.
 
     """
 
-    def __init__(self, size=15, history_length=8):
-        self.board = np.zeros((size, size), dtype=int)
+    def __init__(self, history_length=8):
+        self.width = game_config['board_width']
+        self.height = game_config['board_height']
+        self.k = game_config['k']
+        self.board = np.zeros((self.height, self.width), dtype=int)
         self.board.fill(EMPTY)
-        self.size = size
         self.current_player = BLACK
         self.history = []
         # Keeps 8 history board for fast feature extraction
         # Fill zeros for non-existing histories
         # board_history does not include the current board while the feature does,
         self.history_length = history_length
-        self.board_history = [np.zeros((size, size), dtype=int) for _ in range(history_length - 1)]
+        self.board_history = [np.zeros((self.height, self.width), dtype=int) for _ in range(history_length - 1)]
         self.is_end_of_game = False
         self.winner = 0
         self.turns = 0
@@ -32,12 +38,12 @@ class GameState(object):
         """simply return True iff position is within the bounds of [0, self.size)
         """
         (x, y) = position
-        return x >= 0 and y >= 0 and x < self.size and y < self.size
+        return x >= 0 and y >= 0 and x < self.height and y < self.width
 
     def copy(self):
         """get a copy of this Game state
         """
-        other = GameState(self.size)
+        other = GameState()
         other.board = self.board.copy()
         other.current_player = self.current_player
         other.history = list(self.history)
@@ -60,7 +66,7 @@ class GameState(object):
         Returns: a list of legal moves
 
         """
-        legal_moves = [(i, j) for i in range(self.size) for j in range(self.size) if self.is_legal((i, j))]
+        legal_moves = [(i, j) for i in range(self.height) for j in range(self.width) if self.is_legal((i, j))]
         return legal_moves
 
     def get_winner(self):
@@ -134,12 +140,12 @@ class GameState(object):
                 diag2_count += 1
 
             # winning condition
-            if h_count >= 5 or v_count >= 5 or diag1_count >= 5 or diag2_count >= 5:
+            if h_count >= self.k or v_count >= self.k or diag1_count >= self.k or diag2_count >= self.k:
                 self.is_end_of_game = True
                 self.winner = self.current_player
 
             # check if stone has filled the board if no one wins yet
-            elif self.turns == self.size * self.size:
+            elif self.turns == self.height * self.width:
                 self.is_end_of_game = True
                 self.winner = None
 
@@ -159,6 +165,8 @@ class GameState(object):
             Arguments:
                 transform_id: integer in range [0, 7]
         """
+        assert self.height == self.width
+
         def _transform(b):
             # Performs reflection
             if transform_id // 4 == 1:
@@ -166,6 +174,7 @@ class GameState(object):
             # Performs rotation
             b = np.rot90(b, transform_id % 4)
             return b
+
         # List of boards to transform
         self.board = _transform(self.board)
         self.board_history = [_transform(b) for b in self.board_history]

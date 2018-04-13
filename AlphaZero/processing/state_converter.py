@@ -27,7 +27,7 @@ class StateTensorConverter(object):
             },
             "color": {
                 "size": 1,
-                "function": lambda state: np.ones((1, state.size, state.size)) *
+                "function": lambda state: np.ones((1, state.height, state.width)) *
                                           (state.current_player == self._game_env.BLACK)
             }
         }
@@ -49,7 +49,7 @@ class StateTensorConverter(object):
         """A feature encoding WHITE and BLACK on separate planes of recent history_length states
         """
 
-        planes = np.zeros((2 * self._config['history_step'], state.size, state.size))
+        planes = np.zeros((2 * self._config['history_step'], state.height, state.width))
 
         for t in range(self._config['history_step'] - 1):
             planes[2 * t, :, :] = state.board_history[t] == state.current_player  # own stone
@@ -65,9 +65,7 @@ class StateTensorConverter(object):
         feat_tensors = [proc(state) for proc in self.processors]
 
         # concatenate along feature dimension then add in a singleton 'batch' dimension
-        f, sz = self.output_dim, state.size
-
-        tensor = np.concatenate(feat_tensors).reshape((1, f, sz, sz))
+        tensor = np.concatenate(feat_tensors).reshape((1, self.output_dim, state.height, state.width))
         tensor = tensor.astype(np.int8)
 
         return tensor

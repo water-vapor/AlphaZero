@@ -22,6 +22,8 @@ class GameState(object):
         self.board[size // 2][size // 2 - 1] = BLACK
         self.board[size // 2 - 1][size // 2] = BLACK
         self.size = size
+        self.height = size
+        self.width = size
         self.current_player = BLACK
         self.history = []
         # Keeps 8 history board for fast feature extraction

@@ -1,19 +1,20 @@
 # Metainfo
-name: gomoku
-env_path: AlphaZero.env.gomoku
-game_converter_path: AlphaZero.processing.gomoku.game_converter
+name: mnk_6_5_4         # This name is used in paths to store models only, so should be made explicit with parameters
+env_path: AlphaZero.env.mnk
+game_converter_path: AlphaZero.processing.mnk.game_converter
 state_converter_path: AlphaZero.processing.state_converter
 gameplay_path: AlphaZero.game.gameplay
 
 # Feature parameters for NN input and output
-board_width: 15
-board_height: 15
+board_height: 6         # Value of M
+board_width: 5          # Value of N
+k: 4                    # Value of K
 history_step: 8
 planes_per_step: 2      # Two binary board for each player's stones
 additional_planes: 1    # If black is to play
 
 output_plane: 1
-flat_move_output: 225
+flat_move_output: 30
 
 
 # alpha and epsilon in Dirichlet noise
@@ -22,4 +23,4 @@ d_epsilon: 0.25
 
 # The transforming function before the NN evaluation.
 # Refers to the dihedral reflection and rotation in the paper.
-transform_types: 8
+transform_types: 0      # Disable transforms for asymmetric board games
