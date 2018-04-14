@@ -91,10 +91,10 @@ class TensorActionConverter(object):
         Returns:
             a list of (action, prob)
         """
-        res = [((i // self._wid, i % self._hei), tensor[i]) for i in range(self._wid * self._hei)]
+        res = [((i // self._wid, i % self._wid), tensor[i]) for i in range(self._hei * self._wid)]
         if self._allow_pass_move:
             # Pass move is always represented as None, no need for extra import
-            res.append((None, tensor[self._wid * self._hei]))
+            res.append((None, tensor[self._hei * self._wid]))
 
         return res
 
@@ -121,7 +121,7 @@ class ReverseTransformer(object):
         Returns:
             None
         """
-        for i in range(self._wid * self._hei):
+        for i in range(self._hei * self._wid):
             action_prob[i] = ((action_prob[i][0][0], self._wid - 1 - action_prob[i][0][1]), action_prob[i][1])
 
     def reverse_nprot90(self, action_prob, transform_id):
@@ -138,16 +138,16 @@ class ReverseTransformer(object):
         if transform_id == 0:
             return
         elif transform_id == 1:
-            for i in range(self._wid * self._hei):
+            for i in range(self._hei * self._wid):
                 action_prob[i] = ((action_prob[i][0][1], self._wid - 1 - action_prob[i][0][0]), action_prob[i][1])
             return
         elif transform_id == 2:
-            for i in range(self._wid * self._hei):
+            for i in range(self._hei * self._wid):
                 action_prob[i] = (
                     (self._hei - 1 - action_prob[i][0][0], self._wid - 1 - action_prob[i][0][1]), action_prob[i][1])
             return
         elif transform_id == 3:
-            for i in range(self._wid * self._hei):
+            for i in range(self._hei * self._wid):
                 action_prob[i] = ((self._hei - 1 - action_prob[i][0][1], action_prob[i][0][0]), action_prob[i][1])
             return
         else:
