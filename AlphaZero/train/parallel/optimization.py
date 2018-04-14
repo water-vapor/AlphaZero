@@ -2,6 +2,7 @@ import atexit
 import traceback as tb
 import socket
 import pickle
+import os
 
 import numpy as np
 import yaml
@@ -110,6 +111,8 @@ class Datapool:
 
         self.pool_size = ext_config['pool_size']
         self.start_data_size = ext_config['start_data_size']
+        self.store_path = ext_config.get('store_path')
+        self.load_prev = ext_config['load_prev']
 
         conn_num = ext_config['conn_num']
         self.rcpt = Reception(conn_num)
@@ -126,23 +129,24 @@ class Datapool:
 
     def serve(self):
         printlog('start')
+        if self.load_prev and self.store_path is not None:
+            printlog('load previous data')
+            for file in os.listdir(self.store_path):
+                if file.endswith('.npz'):
+                    loaded = np.load(os.path.join(self.store_path, file))
+                    self.merge_data((loaded['arr_0'], loaded['arr_1'], loaded['arr_2']))
+        count = 0
         while True:
             (value, req_type), s_conn = self.rcpt.get()
             if req_type == 'put':
                 # printlog('get packet')
                 data = value
-                if self.data_pool is None:
-                    printlog('init pool')
-                    self.data_pool = [item for item in data]
-                else:
-                    printlog('add data to pool')
-                    self.data_pool = [np.concatenate([it, it_new], axis=0) for it, it_new in zip(self.data_pool, data)]
-                    if self.data_pool[0].shape[0] > self.pool_size:
-                        printlog('delete old data')
-                        self.data_pool = [it[-self.pool_size:] for it in self.data_pool]
-                printlog('data size: '+str(self.data_pool[0].shape[0]))
+                self.merge_data(data)
                 if self.data_pool[0].shape[0] > self.start_data_size:
                     self.start_training.release()
+                if self.store_path is not None:
+                    np.savez_compressed(os.path.join(self.store_path, str(count)), *data)
+                count += 1
                 s_conn.send('done')
             elif req_type == 'get':
                 # printlog('sample data')
@@ -150,6 +154,18 @@ class Datapool:
                 idxs = np.random.choice(range(self.data_pool[0].shape[0]), batch_size)
                 data = (self.data_pool[0][idxs], self.data_pool[1][idxs], self.data_pool[2][idxs])
                 s_conn.send(data)
+
+    def merge_data(self, data):
+        if self.data_pool is None:
+            printlog('init pool')
+            self.data_pool = [item for item in data]
+        else:
+            printlog('add data to pool')
+            self.data_pool = [np.concatenate([it, it_new], axis=0) for it, it_new in zip(self.data_pool, data)]
+            if self.data_pool[0].shape[0] > self.pool_size:
+                printlog('delete old data')
+                self.data_pool = [it[-self.pool_size:] for it in self.data_pool]
+        printlog('data size: ' + str(self.data_pool[0].shape[0]))
 
     def put(self, data):
         self.rcpt.req((data, 'put'))

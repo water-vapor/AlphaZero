@@ -8,8 +8,10 @@ cluster:
 
 datapool:
   pool_size: 500000
-  start_data_size: 5000
+  start_data_size: 80000
   conn_num: 20
+  load_prev: True
+  store_path: 'data/selfplay/'
 
 evaluator:
   num_games: 10
@@ -40,7 +42,7 @@ optimizer:
   num_eval: 200
   job: 'curr'
 #  load_path:
-  log_dir: 'rl/4.12'
+  log_dir: 'rl/4.14'
   eval_data_path: 'data/kgs_subset_554_data.hdf5'
   train_val_test:
     - 0.93
