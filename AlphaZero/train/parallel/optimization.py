@@ -110,42 +110,19 @@ class Datapool:
 
         self.pool_size = ext_config['pool_size']
         self.start_data_size = ext_config['start_data_size']
-        self.remote_port = ext_config['remote_port']
 
         conn_num = ext_config['conn_num']
         self.rcpt = Reception(conn_num)
 
         self.server = mp.Process(target=self.serve, name='data_pool_server')
-        self.remote_server = mp.Process(target=self.remote_rcv, name="data_pool_remote_rcv")
 
     def __enter__(self):
         self.server.start()
-        self.remote_server.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.server.terminate()
-        self.remote_server.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
-
-    def remote_rcv(self):
-        server_socket = socket.socket()
-        server_socket.bind(('', self.remote_port))
-
-        while True:
-            server_socket.listen(1)
-            printlog('waiting for a connection...')
-            client_connection, client_address = server_socket.accept()
-            printlog('connected to', client_address[0])
-            ultimate_buffer = b''
-            while True:
-                receiving_buffer = client_connection.recv(2**20)
-                if not len(receiving_buffer): break
-                ultimate_buffer += receiving_buffer
-            final_image = pickle.loads(ultimate_buffer)
-            client_connection.close()
-            printlog('frame received')
-            self.put(final_image)
 
     def serve(self):
         printlog('start')

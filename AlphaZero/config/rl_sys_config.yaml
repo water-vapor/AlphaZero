@@ -10,7 +10,6 @@ datapool:
   pool_size: 500000
   start_data_size: 5000
   conn_num: 20
-  remote_port: 7777
 
 evaluator:
   num_games: 10
@@ -23,6 +22,8 @@ evaluator:
 
 selfplay:
   num_worker: 32
+  remote_port: 7777
+  remote_update_port: 7778
   gameplay:
     dirichlet_before: 30
     log_iter: 100

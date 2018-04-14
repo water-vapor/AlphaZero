@@ -97,11 +97,14 @@ class NNEvaluator:
         while True:
             (req_type, filename), s_conn = self.sl_rcpt.get()
             if req_type == 'load':
+                printlog_thrd('load')
                 self.rwlock.w_acquire()
                 self.net.load(filename)
                 self.rwlock.w_release()
+                printlog_thrd('load complete')
                 s_conn.send('done')
             elif req_type == 'save':
+                printlog_thrd('save')
                 self.net.save(filename)
                 s_conn.send('done')
 
