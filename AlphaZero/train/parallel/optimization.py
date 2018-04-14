@@ -85,7 +85,7 @@ class Optimizer:
                 self.eval_model(dataset, step, self.net, val_indices, self.eval_batch_size, self.log_dir)
             if (step + 1) % self.num_ckpt == 0:
                 self.net.save('./' + self.game_config['name'] + '_model/ckpt')  # TODO: use proper model name
-                # self.s_conn.send(step + 1)
+                self.s_conn.send(step + 1)
 
     def eval_model(self, dataset, global_step, model, val_indices, minibatch, log_dir):
 
