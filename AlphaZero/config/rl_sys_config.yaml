@@ -7,9 +7,10 @@ cluster:
     - 'localhost:3335'
 
 datapool:
-  pool_size: 5000
-  start_data_size: 100
+  pool_size: 500000
+  start_data_size: 5000
   conn_num: 20
+  remote_port: 7777
 
 evaluator:
   num_games: 10
@@ -21,23 +22,24 @@ evaluator:
       max_playout: 5
 
 selfplay:
-  num_worker: 2
+  num_worker: 32
   gameplay:
     dirichlet_before: 30
-    log_iter: 30
+    log_iter: 100
+    max_turn: 400
     player:
-      max_playout: 5
+      max_playout: 50
 
 optimizer:
-  num_ckpt: 100
+  num_ckpt: 200
   num_steps: 700000
-  batch_size: 8
-  num_gpu: 1
-  num_log: 30
-  num_eval: 100
+  batch_size: 64
+  num_gpu: 4
+  num_log: 100
+  num_eval: 200
   job: 'curr'
 #  load_path:
-  log_dir: 'rl/ckpt'
+  log_dir: 'rl/4.12'
   eval_data_path: 'data/kgs_subset_554_data.hdf5'
   train_val_test:
     - 0.93
@@ -49,9 +51,10 @@ chal:
   max_batch_size: 32
   num_gpu: 1
   job: 'chal'
+#  load_path:
 
 best:
   max_batch_size: 32
-  num_gpu: 1
+  num_gpu: 4
   job: 'best'
   load_path: 'sl/3.23/model-127440'

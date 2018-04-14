@@ -35,6 +35,7 @@ class Optimizer:
         self.num_gpu = ext_config['num_gpu']
         self.load_path = ext_config.get('load_path')
         self.log_dir = ext_config['log_dir']
+
         self.eval_data_path = ext_config.get('eval_data_path')
         self.train_val_test = ext_config['train_val_test']
         self.eval_batch_size = ext_config['eval_batch_size']
@@ -59,30 +60,35 @@ class Optimizer:
         if self.load_path is not None:
             self.net.load(self.load_path)
 
-        dataset = h5.File(self.eval_data_path)
-        n_total_data = len(dataset["states"])
-        n_val_data = int(self.train_val_test[1] * n_total_data)
-        n_val_data = n_val_data - (n_val_data % self.eval_batch_size)
-        shuffle_indices = np.random.permutation(n_total_data)
-        val_indices = shuffle_indices[0: n_val_data]
+        self.writer = tf.summary.FileWriter(self.log_dir)
+        loss_placeholder = tf.placeholder(tf.float32)
+        loss_writer = tf.summary.scalar('train/loss', loss_placeholder)
+
+        if self.eval_data_path is not None:
+            dataset = h5.File(self.eval_data_path)
+            n_total_data = len(dataset["states"])
+            n_val_data = int(self.train_val_test[1] * n_total_data)
+            n_val_data = n_val_data - (n_val_data % self.eval_batch_size)
+            shuffle_indices = np.random.permutation(n_total_data)
+            val_indices = shuffle_indices[0: n_val_data]
 
         self.data_queue.start_training.acquire()
         printlog('training loop begin')
         for step in range(self.num_steps):
             data = self.data_queue.get(self.batch_size)
-            self.net.update(data)
+            loss = self.net.update(data)
             if step % self.num_log == 0:
-                printlog('update iter', step)
-            if step % self.num_eval == 0:
+                printlog('update iter', step, loss)
+                summ = self.net.sess.run(loss_writer, feed_dict={loss_placeholder: loss})
+                self.writer.add_summary(summ, step)
+            if self.eval_data_path is not None and step % self.num_eval == 0:
                 self.eval_model(dataset, step, self.net, val_indices, self.eval_batch_size, self.log_dir)
             if (step + 1) % self.num_ckpt == 0:
                 self.net.save('./' + self.game_config['name'] + '_model/ckpt')  # TODO: use proper model name
-                self.s_conn.send(step + 1)
+                # self.s_conn.send(step + 1)
 
     def eval_model(self, dataset, global_step, model, val_indices, minibatch, log_dir):
 
-        if self.writer is None:
-            self.writer = tf.summary.FileWriter(log_dir)
         val_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],
             dataset["actions"],
