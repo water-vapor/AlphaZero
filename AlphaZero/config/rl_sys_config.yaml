@@ -19,6 +19,7 @@ evaluator:
   gameplay:
     dirichlet_before: 30
     log_iter: 30
+    max_turn: 400
     player:
       max_playout: 5
 
