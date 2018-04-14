@@ -28,7 +28,7 @@ class Model(object):
             game_config['planes_per_step'] + game_config['additional_planes']
 
         self.x = tf.placeholder(
-            tf.float32, [None, self._f, self._w, self._h], name="x")
+            tf.float32, [None, self._f, self._h, self._w], name="x")
         if game_config['output_plane'] == 1:
             self.p = tf.placeholder(
                 tf.float32, [None, game_config['flat_move_output']], name="p")
