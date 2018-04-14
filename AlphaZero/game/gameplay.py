@@ -35,7 +35,6 @@ class Game:
 
     def start(self):
         """ Make the instance callable. Start playing.
-
         Returns: Game winner. Definition is in go.py.
         """
         current_player = self.player_1
@@ -45,7 +44,8 @@ class Game:
             if self.state.turns % self.log_iter == 0:
                 printlog(str(self.state.turns), 'moves')
 
-            move, probs = current_player.think(self.state, (self.state.turns <= self.dirichlet_before))  # TODO: dirichlet doesn't work
+            move, probs = current_player.think(self.state, (
+                    self.state.turns <= self.dirichlet_before))  # TODO: dirichlet doesn't work
             self.state_history.append(self.state.copy())
             self.probs_history.append(probs)
             self.state.do_move(move)
@@ -66,7 +66,7 @@ class Game:
 
     def get_history(self):
         # TODO: whether to put the whole game history in one batch
-        state_np = np.zeros((len(self.state_history), self._f, self._w, self._h))
+        state_np = np.zeros((len(self.state_history), self._f, self._h, self._w))
         probs_np = np.zeros((len(self.probs_history), self._o))
         result_np = np.zeros((len(self.probs_history)))
         for i in range(len(self.probs_history)):
