@@ -39,7 +39,7 @@ class Network(object):
             p_list = []
             v_list = []
             for idx, model in enumerate(self.models):
-                with tf.name_scope("grad_{}".format(idx)), tf.device("/GPU:{}".format(idx)):
+                with tf.name_scope("grad_{}".format(idx)) as name_scope, tf.device("/GPU:{}".format(idx)):
                     loss = model.get_loss()
                     grad = self.opt.compute_gradients(loss)
                     loss_list.append(loss)
@@ -47,10 +47,18 @@ class Network(object):
                     p_list.append(model.R_p)
                     v_list.append(model.R_v)
 
+                    if idx == 0:
+                        update_ops = tf.get_collection(
+                            tf.GraphKeys.UPDATE_OPS, name_scope)
+
             self.loss = tf.add_n(loss_list) / len(loss_list)
             self.grad = average_gradients(grad_list)
-            self.train_op = self.opt.apply_gradients(
-                self.grad, global_step=self.models[0].global_step)
+
+            train_op = [self.opt.apply_gradients(
+                self.grad, global_step=self.models[0].global_step)]
+            train_op.extend(update_ops)
+            self.train_op = tf.group(*train_op)
+
             self.R_p = tf.concat(p_list, axis=0)
             self.R_v = tf.concat(v_list, axis=0)
 

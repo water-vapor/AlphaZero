@@ -74,7 +74,8 @@ class Model(object):
                     R1, config, self.is_train, scope="B1", mode=self.mode))
                 R2 = tf.nn.conv2d(
                     R1, W2, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
-                R2 = batch_norm(R2, config, self.is_train, scope="B2", mode=self.mode)
+                R2 = batch_norm(R2, config, self.is_train,
+                                scope="B2", mode=self.mode)
                 R = _activation(tf.add(R, R2))
 
         with tf.variable_scope("policy_head"):
