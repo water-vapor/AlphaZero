@@ -129,13 +129,14 @@ class Datapool:
 
     def serve(self):
         printlog('start')
+        count = 0
         if self.load_prev and self.store_path is not None:
             printlog('load previous data')
             for file in os.listdir(self.store_path):
                 if file.endswith('.npz'):
                     loaded = np.load(os.path.join(self.store_path, file))
                     self.merge_data((loaded['arr_0'], loaded['arr_1'], loaded['arr_2']))
-        count = 0
+                    count += 1
         while True:
             (value, req_type), s_conn = self.rcpt.get()
             if req_type == 'put':
