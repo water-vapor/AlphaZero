@@ -54,21 +54,18 @@ class Evaluator:
         self.proc.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
 
-    def count(self):
-        self.win_counter.value += 1
-
     def eval_wrapper(self, color_of_new):
         self.nn_eval_chal.rwlock.r_acquire()
         self.nn_eval_best.rwlock.r_acquire()
 
-        printlog('begin')
+        # printlog('begin')
         if color_of_new == _game_env.BLACK:
             game = _gameplay.Game(self.nn_eval_chal, self.nn_eval_best, self.game_config, self.ext_config['gameplay'])
         else:
             game = _gameplay.Game(self.nn_eval_best, self.nn_eval_chal, self.game_config, self.ext_config['gameplay'])
         winner = game.start()
         if winner == color_of_new:
-            self.count()
+            self.win_counter.value += 1
         printlog('winner', winner)
 
         self.worker_lim.release()
@@ -87,6 +84,7 @@ class Evaluator:
             printlog('load network')
             self.nn_eval_chal.load('./' + self.game_config['name'] + '_model/ckpt-' + str(new_model_path))
             self.win_counter.value = 0
+            self.finished_worker.value = 0
             # open pool
             color_of_new_list = [_game_env.BLACK, _game_env.WHITE] * (self.num_games // 2) + [
                 _game_env.BLACK] * (self.num_games % 2)
