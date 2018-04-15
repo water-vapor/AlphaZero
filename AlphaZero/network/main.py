@@ -2,7 +2,7 @@ import os
 import tensorflow as tf
 import yaml
 
-from AlphaZero.network.model import get_multi_models
+from AlphaZero.network.model import Model
 from AlphaZero.network.util import average_gradients, batch_split
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
@@ -18,6 +18,11 @@ class Network(object):
             self.config = yaml.load(fh)
         self.num_gpu = num_gpu
         self._game_config = game_config
+        self.mode = mode
+
+        learning_scheme = self.config["learning_rate"]
+        boundaries = sorted([int(value) for value in learning_scheme.keys()])
+        values = [float(learning_scheme[value]) for value in boundaries]
 
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
@@ -26,30 +31,40 @@ class Network(object):
         self.sess = tf.Session(target=server.target)
 
         with tf.device('/job:' + job + '/task:0'):
-            self.models = get_multi_models(
-                self.num_gpu, self.config, self._game_config, mode=mode)
-            self.saver = tf.train.Saver()
 
-            self.lr = tf.placeholder(tf.float32, [], name="lr")
-            self.opt = tf.train.MomentumOptimizer(
-                self.lr, momentum=self.config["momentum"])
+            self.models = []
+
+            with tf.variable_scope("models"):
+                for idx in range(self.num_gpu):
+                    reuse = bool(idx != 0)
+                    with tf.variable_scope("model", reuse=reuse):
+                        with tf.name_scope("model_{}".format(idx)) as name_scope, tf.device("/GPU:{}".format(idx)):
+                            model = Model(
+                                self.config, name_scope, self._game_config, mode=self.mode, reuse=reuse)
+                            self.models.append(model)
+                            if idx == 0:
+                                update_ops = tf.get_collection(
+                                    tf.GraphKeys.UPDATE_OPS, name_scope)
 
             loss_list = []
             grad_list = []
             p_list = []
             v_list = []
-            for idx, model in enumerate(self.models):
-                with tf.name_scope("grad_{}".format(idx)) as name_scope, tf.device("/GPU:{}".format(idx)):
+
+            self.lr = tf.train.piecewise_constant(
+                self.models[0].global_step, boundaries[1:], values)
+            self.opt = tf.train.MomentumOptimizer(
+                self.lr, momentum=self.config["momentum"])
+
+            for idx in range(self.num_gpu):
+                with tf.name_scope("model_{}".format(idx)) as name_scope, tf.device("/GPU:{}".format(idx)):
+                    model = self.models[idx]
                     loss = model.get_loss()
                     grad = self.opt.compute_gradients(loss)
                     loss_list.append(loss)
                     grad_list.append(grad)
                     p_list.append(model.R_p)
                     v_list.append(model.R_v)
-
-                    if idx == 0:
-                        update_ops = tf.get_collection(
-                            tf.GraphKeys.UPDATE_OPS, name_scope)
 
             self.loss = tf.add_n(loss_list) / len(loss_list)
             self.grad = average_gradients(grad_list)
@@ -61,14 +76,15 @@ class Network(object):
 
             self.R_p = tf.concat(p_list, axis=0)
             self.R_v = tf.concat(v_list, axis=0)
+            self.saver = tf.train.Saver()
 
-        if pretrained:
-            self.saver.restore(
-                self.sess, tf.train.latest_checkpoint(self.config['save_dir']))
-        else:
-            self.sess.run(tf.global_variables_initializer())
+            if pretrained:
+                self.saver.restore(
+                    self.sess, tf.train.latest_checkpoint(self.config['save_dir']))
+            else:
+                self.sess.run(tf.global_variables_initializer())
 
-    def update(self, data, lr=None):
+    def update(self, data):
         '''
         Update the model parameters.
 
@@ -79,23 +95,12 @@ class Network(object):
         Return: Average loss of the batch
 
         '''
-        global_step = self.get_global_step()
-        if global_step % 1000 == 0:
-            learning_scheme = self.config["learning_rate"]
-            divides = sorted([int(value) for value in learning_scheme.keys()])
-            current = 0
-            for element in divides:
-                if element < global_step:
-                    current = element
-            self.learning_rate = learning_scheme[current]
-
         feed_dict = {}
         for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
             feed_dict[model.x] = batch[0]
             feed_dict[model.p] = batch[1]
             feed_dict[model.v] = batch[2]
             feed_dict[model.is_train] = True
-        feed_dict[self.lr] = self.learning_rate if lr is None else lr
         loss, train_op = self.sess.run(
             [self.loss, self.train_op], feed_dict=feed_dict)
         return loss

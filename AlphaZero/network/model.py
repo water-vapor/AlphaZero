@@ -1,26 +1,15 @@
 import tensorflow as tf
-
 from AlphaZero.network.util import batch_norm, linear
 
 import AlphaZero.workaround.softmax_v2 as softmax_v2
 
 
-def get_multi_models(num_gpu, config, game_config, mode="NHWC"):
-    models = []
-    with tf.variable_scope("models"):
-        for idx in range(num_gpu):
-            with tf.name_scope("model_{}".format(idx)) as scope, tf.device("/GPU:{}".format(idx)):
-                model = Model(config, scope, game_config, mode=mode)
-                tf.get_variable_scope().reuse_variables()
-                models.append(model)
-    return models
-
-
 class Model(object):
-    def __init__(self, config, scope, game_config, mode="NHWC"):
+    def __init__(self, config, scope, game_config, reuse=False, mode="NHWC"):
         self.config = config
         self.scope = scope
         self.mode = mode
+        self.reuse = reuse
         self._game_config = game_config
         self._w = game_config['board_width']
         self._h = game_config['board_height']
@@ -60,7 +49,8 @@ class Model(object):
             "W0", [3, 3, self._f, 256], regularizer=regularizer)
         R = tf.nn.conv2d(inputs, W0, strides=[
             1, 1, 1, 1], padding='SAME', data_format=self.mode)
-        R = _activation(batch_norm(R, config, self.is_train, mode=self.mode))
+        R = _activation(batch_norm(R, config, self.is_train,
+                                   mode=self.mode, reuse=self.reuse))
 
         for layer in range(config["num_blocks"]):
             with tf.variable_scope("resblock_{}".format(layer)):
@@ -71,19 +61,19 @@ class Model(object):
                 R1 = tf.nn.conv2d(
                     R, W1, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
                 R1 = _activation(batch_norm(
-                    R1, config, self.is_train, scope="B1", mode=self.mode))
+                    R1, config, self.is_train, scope="B1", mode=self.mode, reuse=self.reuse))
                 R2 = tf.nn.conv2d(
                     R1, W2, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
                 R2 = batch_norm(R2, config, self.is_train,
-                                scope="B2", mode=self.mode)
+                                scope="B2", mode=self.mode, reuse=self.reuse)
                 R = _activation(tf.add(R, R2))
 
         with tf.variable_scope("policy_head"):
             W0 = tf.get_variable("W0", [1, 1, 256, 2], regularizer=regularizer)
             R_p = tf.nn.conv2d(
                 R, W0, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
-            R_p = tf.reshape(_activation(batch_norm(
-                R_p, config, self.is_train, mode=self.mode)), [-1, self._w * self._h * 2])
+            R_p = tf.reshape(_activation(batch_norm(R_p, config, self.is_train,
+                                                    mode=self.mode, reuse=self.reuse)), [-1, self._w * self._h * 2])
             logits = linear(R_p, self._game_config['flat_move_output'], True)
             R_p = tf.nn.softmax(logits)
 
@@ -92,7 +82,7 @@ class Model(object):
             R_v = tf.nn.conv2d(
                 R, W0, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
             R_v = tf.reshape(_activation(batch_norm(
-                R_v, config, self.is_train, mode=self.mode)), [-1, self._w * self._h])
+                R_v, config, self.is_train, mode=self.mode, reuse=self.reuse)), [-1, self._w * self._h])
             R_v = _activation(linear(R_v, 256, True, scope="F1"))
             R_v = tf.nn.tanh(tf.squeeze(
                 linear(R_v, 1, True, scope="F2"), [-1]))
