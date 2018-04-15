@@ -126,7 +126,7 @@ class NNEvaluator:
             printlog('load model')
             self.net.load(self.load_path)
 
-        thrd.Thread(target=self.sl_listen, name='sl_listener').start()
+        thrd.Thread(target=self.sl_listen, name='sl_listener', daemon=True).start()
 
         printlog('loop begin')
         while True:

@@ -73,11 +73,11 @@ class Selfplay:
     def run(self):
         printlog('start')
 
-        thrd.Thread(target=self.listen_update, name='selfplay_listener').start()
+        thrd.Thread(target=self.listen_update, name='selfplay_listener', daemon=True).start()
         if self.ext_config.get('remote'):
-            thrd.Thread(target=self.remote_listen_update, name='selfplay_remote_update').start()
+            thrd.Thread(target=self.remote_listen_update, name='selfplay_remote_update', daemon=True).start()
         else:
-            thrd.Thread(target=self.remote_rcv, name="selfplay_remote_rcv").start()
+            thrd.Thread(target=self.remote_rcv, name="selfplay_remote_rcv", daemon=True).start()
 
         cnt = 0
         while True:

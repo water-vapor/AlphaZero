@@ -58,8 +58,11 @@ class Optimizer:
     def run(self):
         self.net = network.Network(self.game_config, self.num_gpu,
                                    cluster=self.cluster, job=self.job)
+
+        start_step = 0
         if self.load_path is not None:
             self.net.load(self.load_path)
+            start_step = self.net.get_global_step()
 
         self.writer = tf.summary.FileWriter(self.log_dir)
         loss_placeholder = tf.placeholder(tf.float32)
@@ -75,7 +78,7 @@ class Optimizer:
 
         self.data_queue.start_training.acquire()
         printlog('training loop begin')
-        for step in range(self.num_steps):
+        for step in range(start_step, self.num_steps):
             data = self.data_queue.get(self.batch_size)
             loss = self.net.update(data)
             if step % self.num_log == 0:
@@ -107,7 +110,9 @@ class Optimizer:
 class Datapool:
     def __init__(self, ext_config):
         self.data_pool = None
+
         self.start_training = mp.Semaphore(0)
+        self.training_started = False
 
         self.pool_size = ext_config['pool_size']
         self.start_data_size = ext_config['start_data_size']
@@ -132,6 +137,8 @@ class Datapool:
         count = 0
         if self.load_prev and self.store_path is not None:
             printlog('load previous data')
+            if not os.path.isdir(self.store_path):
+                os.mkdir(self.store_path)
             for file in os.listdir(self.store_path):
                 if file.endswith('.npz'):
                     loaded = np.load(os.path.join(self.store_path, file))
@@ -143,8 +150,6 @@ class Datapool:
                 # printlog('get packet')
                 data = value
                 self.merge_data(data)
-                if self.data_pool[0].shape[0] > self.start_data_size:
-                    self.start_training.release()
                 if self.store_path is not None:
                     np.savez_compressed(os.path.join(self.store_path, str(count)), *data)
                 count += 1
@@ -167,6 +172,9 @@ class Datapool:
                 printlog('delete old data')
                 self.data_pool = [it[-self.pool_size:] for it in self.data_pool]
         printlog('data size: ' + str(self.data_pool[0].shape[0]))
+        if (not self.training_started) and self.data_pool[0].shape[0] > self.start_data_size:
+            self.start_training.release()
+            self.training_started = True
 
     def put(self, data):
         self.rcpt.req((data, 'put'))
