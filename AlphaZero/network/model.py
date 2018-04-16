@@ -92,7 +92,7 @@ class Model(object):
         self.R_v = R_v
 
     def _build_loss(self):
-        v_loss = tf.reduce_mean(tf.square(self.R_v - self.v))
+        v_loss = tf.reduce_mean(tf.square(self.R_v - self.v) / 4.)
         p_loss = tf.reduce_mean(softmax_v2.softmax_cross_entropy_with_logits_v2(
             logits=self.logits, labels=self.p))
         r_loss = sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))

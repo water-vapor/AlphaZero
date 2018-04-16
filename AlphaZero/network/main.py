@@ -76,7 +76,7 @@ class Network(object):
 
             self.R_p = tf.concat(p_list, axis=0)
             self.R_v = tf.concat(v_list, axis=0)
-            self.saver = tf.train.Saver()
+            self.saver = tf.train.Saver(max_to_keep=20)
 
             if pretrained:
                 self.saver.restore(

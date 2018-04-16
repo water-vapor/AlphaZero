@@ -107,7 +107,9 @@ def run_training(cmd_line_args=None):
     parser.add_argument(
         "--log_iter", help="Number of steps to record training loss", type=int, default=100)
     parser.add_argument(
-        "--num_batches", help="Number of batches to evaluate the network", type=int, default=100)
+        "--test_iter", help="Number of steps to calculate acc and mse", type=int, default=1000)
+    parser.add_argument(
+        "--num_batches", help="Number of batches to evaluate the network", type=int, default=150)
     parser.add_argument("--train-val-test",
                         help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
                         nargs=3, type=float, default=[0.93, .05, .02])
@@ -142,7 +144,7 @@ def run_training(cmd_line_args=None):
     test_indices = shuffle_indices[n_train_data + n_val_data:]
     model = Network(game_config, args.num_gpu, pretrained=args.resume,
                     config_file=supervised_config_path, mode="NCHW")
-    writer = tf.summary.FileWriter(args.log_dir)
+    writer = tf.summary.FileWriter(args.log_dir, model.sess.graph)
     total_batches = len(train_indices) // args.minibatch
     for epoch in range(args.epochs):
         train_data_generator = shuffled_hdf5_batch_generator(
@@ -157,50 +159,48 @@ def run_training(cmd_line_args=None):
         for batch in tqdm(train_data_generator, total=total_batches, ascii=True):
             global_step = model.get_global_step() + 1
             loss = model.update(batch)
+
             if global_step % args.log_iter == 0:
                 loss_sum = tf.Summary(value=[tf.Summary.Value(
                     tag="model/loss", simple_value=loss), ])
                 writer.add_summary(loss_sum, global_step)
                 writer.flush()
-        val_data_generator = shuffled_hdf5_batch_generator(
+
+            if global_step % args.test_iter == 0:
+                val_data_generator = shuffled_hdf5_batch_generator(
+                    dataset["states"],
+                    dataset["actions"],
+                    dataset["results"],
+                    val_indices,
+                    args.minibatch,
+                )
+                eval_data_generator = shuffled_hdf5_batch_generator(
+                    dataset["states"],
+                    dataset["actions"],
+                    dataset["results"],
+                    eval_indices,
+                    args.minibatch,
+                )
+                _, _, _, eval_sum = evaluate(
+                    model, eval_data_generator, tag="train", max_batch=args.num_batches)
+                _, _, _, val_sum = evaluate(
+                    model, val_data_generator, tag="val", max_batch=args.num_batches)
+                for summ in chain(val_sum, eval_sum):
+                    writer.add_summary(summ, global_step)
+                writer.flush()
+                model.save(os.path.join(args.save_dir, "model"))
+
+        test_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],
             dataset["actions"],
             dataset["results"],
-            val_indices,
+            test_indices,
             args.minibatch,
         )
-        eval_data_generator = shuffled_hdf5_batch_generator(
-            dataset["states"],
-            dataset["actions"],
-            dataset["results"],
-            eval_indices,
-            args.minibatch,
-        )
-        print("Evaluation at step {}".format(global_step))
-        eval_loss, eval_accuracy, eval_mse, eval_sum = evaluate(
-            model, eval_data_generator, tag="train", max_batch=args.num_batches)
-        print("Train loss {}, accuracy {}, mse {}".format(
-            eval_loss, eval_accuracy, eval_mse))
-        val_loss, val_accuracy, val_mse, val_sum = evaluate(
-            model, val_data_generator, tag="val", max_batch=args.num_batches)
-        print("Dev loss {}, accuracy {}, mse {}".format(
-            val_loss, val_accuracy, val_mse))
+        test_loss, test_accuracy, test_mse, test_sum = evaluate(
+            model, test_data_generator, tag="test")
         for summ in chain(val_sum, eval_sum):
             writer.add_summary(summ, global_step)
-        writer.flush()
-        model.save(os.path.join(args.save_dir, "model"))
-
-    test_data_generator = shuffled_hdf5_batch_generator(
-        dataset["states"],
-        dataset["actions"],
-        dataset["results"],
-        test_indices,
-        args.minibatch,
-    )
-    test_loss, test_accuracy, test_mse, _ = evaluate(
-        model, test_data_generator, tag="test")
-    print("Test loss {}, accuracy {}, mse {}".format(
-        test_loss, test_accuracy, test_mse))
 
 
 if __name__ == '__main__':
