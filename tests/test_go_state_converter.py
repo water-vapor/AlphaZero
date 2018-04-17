@@ -7,6 +7,7 @@ from AlphaZero.processing.state_converter import StateTensorConverter
 with open('AlphaZero/config/go.yaml') as f:
     config = yaml.load(f)
 
+
 def empty_board():
     """
     """
@@ -230,7 +231,7 @@ class TestPreprocessingFeatures(unittest.TestCase):
         bd_h = pp2.state_to_tensor(gs)[0]
         bd_c = pp3.state_to_tensor(gs)[0]
 
-        self.assertTrue(np.array_equal(feature[:-1, :, :],  bd_h))
+        self.assertTrue(np.array_equal(feature[:-1, :, :], bd_h))
         self.assertTrue(np.array_equal(feature[-1:, :, :], bd_c))
 
 

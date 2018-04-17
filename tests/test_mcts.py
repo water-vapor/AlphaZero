@@ -4,7 +4,6 @@ import yaml
 from operator import itemgetter
 from AlphaZero.env.go import GameState
 from AlphaZero.mcts import MCTreeNode, MCTSearch
-from AlphaZero.math_helper import random_state_transform
 
 with open('tests/go_test.yaml') as f:
     config = yaml.load(f)
@@ -125,6 +124,7 @@ def constant_value(state):
 def policy_value_generator(policy, value):
     def policy_value(state):
         return policy(state), value(state)
+
     return policy_value
 
 

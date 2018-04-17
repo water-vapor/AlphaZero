@@ -6,14 +6,14 @@ state_converter_path: AlphaZero.processing.state_converter
 gameplay_path: AlphaZero.game.gameplay
 
 # Feature parameters for NN input and output
-board_width: 19
-board_height: 19
+board_width: 7
+board_height: 7
 history_step: 8
 planes_per_step: 2      # Two binary board for each player's stones
 additional_planes: 1    # If black is to play
 
 output_plane: 1
-flat_move_output: 362
+flat_move_output: 50
 
 
 # alpha and epsilon in Dirichlet noise
