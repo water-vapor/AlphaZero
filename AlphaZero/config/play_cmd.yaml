@@ -1,0 +1,4 @@
+game: mnk
+max_playout: 200
+save_dir: mnk_6_5_4_model/ckpt-61800
+#save_dir: go_model/model-68706
