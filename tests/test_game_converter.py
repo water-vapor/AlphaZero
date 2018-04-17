@@ -1,8 +1,8 @@
 import unittest
 import os
-from AlphaGoZero.util import sgf_to_gamestate
-from AlphaGoZero.preprocessing.game_converter import GameConverter
-from AlphaGoZero.preprocessing.game_converter import run_game_converter
+from AlphaZero.util import sgf_to_gamestate
+from AlphaZero.processing.go.game_converter import GameConverter
+from AlphaZero.processing.go.game_converter import run_game_converter
 
 
 class TestGameConverter(unittest.TestCase):
@@ -45,8 +45,7 @@ class TestGameConverter(unittest.TestCase):
 class TestCmdlineConverter(unittest.TestCase):
     def test_directory_conversion(self):
         try:
-            args = ['--features', 'board_history,color',
-                    '--outfile', '.tmp.testing.h5',
+            args = ['--outfile', '.tmp.testing.h5',
                     '--directory', 'tests/test_data/sgf/']
             run_game_converter(args)
             os.remove('.tmp.testing.h5')
@@ -55,8 +54,7 @@ class TestCmdlineConverter(unittest.TestCase):
 
     def test_directory_walk(self):
         try:
-            args = ['--features', 'board_history,color',
-                    '--outfile', '.tmp.testing.h5',
+            args = ['--outfile', '.tmp.testing.h5',
                     '--directory', 'tests/test_data', '--recurse']
             run_game_converter(args)
             os.remove('.tmp.testing.h5')

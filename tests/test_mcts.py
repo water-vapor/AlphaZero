@@ -1,9 +1,13 @@
 import unittest
 import numpy as np
+import yaml
 from operator import itemgetter
-from AlphaGoZero.go import GameState
-from AlphaGoZero.mcts import MCTreeNode, MCTSearch
-from AlphaGoZero.math_helper import random_state_transform
+from AlphaZero.env.go import GameState
+from AlphaZero.mcts import MCTreeNode, MCTSearch
+from AlphaZero.math_helper import random_state_transform
+
+with open('AlphaZero/config/go.yaml') as f:
+    config = yaml.load(f)
 
 
 class TestTreeNode(unittest.TestCase):
@@ -12,23 +16,23 @@ class TestTreeNode(unittest.TestCase):
         self.node = MCTreeNode(None, 1.0)
 
     def test_selection(self):
-        self.node.expand(random_policy(self.gs))
+        self.node.expand(random_policy(self.gs), zero_value(self.gs))
         action, next_node = self.node.select()
         self.assertEqual(action, (18, 18))  # according to the dummy policy below
         self.assertIsNotNone(next_node)
 
     def test_expansion(self):
         self.assertEqual(0, len(self.node._children))
-        self.node.expand(random_policy(self.gs))
+        self.node.expand(random_policy(self.gs), zero_value(self.gs))
         self.assertEqual(19 * 19, len(self.node._children))
         for a, p in random_policy(self.gs):
-            self.assertEqual(p, self.node._children[a]._P)
+            self.assertEqual(p, self.node._children[a].prior_prob)
 
 
 class TestMCTS(unittest.TestCase):
     def setUp(self):
         self.gs = GameState()
-        self.mcts = MCTSearch(random_state_transform, policy_value_generator, max_playout=2)
+        self.mcts = MCTSearch(policy_value_generator, config, max_playout=8)
 
     def _count_expansions(self):
         """Helper function to count the number of expansions past the root using the dummy policy
@@ -45,9 +49,9 @@ class TestMCTS(unittest.TestCase):
         return expansions
 
     def test_playout(self):
-        self.mcts._playout(self.gs.copy(), 8)
+        self.mcts._playout(self.gs.copy(), self.mcts._root)
         # Assert that the most likely child was visited (according to the dummy policy below).
-        self.assertEqual(1, self.mcts._root._children[(18, 18)]._n_visits)
+        self.assertEqual(1, self.mcts._root._children[(18, 18)].visit_count)
         # Assert that the search depth expanded nodes 8 times.
         self.assertEqual(8, self._count_expansions())
 
@@ -60,10 +64,11 @@ class TestMCTS(unittest.TestCase):
             else:
                 return []
 
-        self.mcts = MCTSearch(random_state_transform, policy_value_generator, max_playout=2)
-        self.mcts._playout(self.gs.copy(), 8)
+        self.mcts = MCTSearch(policy_value_generator, config, max_playout=8)
+        self.mcts._playout(self.gs.copy(), self.mcts._root)
         # Assert that (18, 18) and (18, 17) are still only visited once.
-        self.assertEqual(1, self.mcts._root._children[(18, 18)]._n_visits)
+        print([(self.mcts._root._children[(i, j)].visit_count) for i in range(19) for j in range(19)])
+        self.assertEqual(1, self.mcts._root._children[(18, 18)].visit_count)
         # Assert that no expansions happened after reaching the "end" in 4 moves.
         self.assertEqual(5, self._count_expansions())
 
@@ -90,15 +95,12 @@ dummy_distribution = np.arange(361, dtype=np.float)
 dummy_distribution = dummy_distribution / dummy_distribution.sum()
 
 
-def legal_policy(state):
-    moves = state.get_legal_moves(include_eyes=False)
-    return zip(moves, dummy_distribution)
-
-
 def random_policy(state):
     # it is MCTS's responsibility to remove the illegal children
     moves = [(x, y) for x in range(19) for y in range(19)]
-    return zip(moves, dummy_distribution)
+    policy = list(zip(moves, dummy_distribution))
+    policy.append((None, 0))
+    return policy
 
 
 def zero_value(state):

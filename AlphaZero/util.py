@@ -30,7 +30,7 @@ def confirm(prompt=None, resp=False):
         prompt = '%s [%s]|%s: ' % (prompt, 'n', 'y')
 
     while True:
-        ans = raw_input(prompt)
+        ans = input(prompt)
         if not ans:
             return resp
         if ans not in ['y', 'Y', 'n', 'N']:
@@ -102,7 +102,7 @@ def sgf_to_gamestate(sgf_string):
     """
 
     # Don't Repeat Yourself; parsing handled by sgf_iter_states
-    for (gs, move, player) in sgf_iter_states(sgf_string, True):
+    for (gs, move, player, result) in sgf_iter_states(sgf_string, True):
         pass
     # gs has been updated in-place to the final state by the time
     # sgf_iter_states returns
@@ -174,7 +174,8 @@ def sgf_iter_states(sgf_string, include_end=True):
         elif game_result[0][0:2] == 'B+':
             winner = go.BLACK
         else:
-            # Non standatd result
+            # Non standard result
+            winner = go.EMPTY
             yield (None, None, None, None)
 
     if game.rest is not None:

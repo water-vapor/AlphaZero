@@ -1,9 +1,11 @@
 import unittest
 import numpy as np
-from AlphaGoZero.go import GameState
-from AlphaGoZero.preprocessing.preprocessing import Preprocess
-import AlphaGoZero.settings as s
+import yaml
+from AlphaZero.env.go import GameState
+from AlphaZero.processing.state_converter import StateTensorConverter
 
+with open('AlphaZero/config/go.yaml') as f:
+    config = yaml.load(f)
 
 def empty_board():
     """
@@ -62,8 +64,8 @@ def simple_board():
 
 
 def bdhistory_to_boards(processor, gs):
-    own = [(processor.state_to_tensor(gs)[0].transpose((1, 2, 0)))[2 * i] for i in range(s.history_length)]
-    opp = [(processor.state_to_tensor(gs)[0].transpose((1, 2, 0)))[2 * i + 1] for i in range(s.history_length)]
+    own = [(processor.state_to_tensor(gs)[0])[2 * i] for i in range(config['history_step'])]
+    opp = [(processor.state_to_tensor(gs)[0])[2 * i + 1] for i in range(config['history_step'])]
     return own, opp
 
 
@@ -78,7 +80,7 @@ class TestPreprocessingFeatures(unittest.TestCase):
 
     def test_get_board_history_mid(self):
         gs = simple_board()
-        pp = Preprocess(["board_history"])
+        pp = StateTensorConverter(config, ["board_history"])
         # In simple board, the current player is white
         own, opp = bdhistory_to_boards(pp, gs)
 
@@ -134,10 +136,8 @@ class TestPreprocessingFeatures(unittest.TestCase):
             [0, 0, 0, 0, 0, 0, 0]])
 
         # check history length
-        self.assertEqual(len(own), s.history_length)
-        self.assertEqual(len(opp), s.history_length)
-        # check number of planes
-        self.assertEqual(own[0], (gs.size(), gs.size(), 2))
+        self.assertEqual(len(own), config['history_step'])
+        self.assertEqual(len(opp), config['history_step'])
         # check return value against hand-coded expectation
         # (given that current_player is white)
         # manually compare boards
@@ -151,7 +151,7 @@ class TestPreprocessingFeatures(unittest.TestCase):
 
     def test_get_board_history_start(self):
         gs = start_board()
-        pp = Preprocess(["board_history"])
+        pp = StateTensorConverter(config, ["board_history"])
         # In simple board, the current player is white
         own, opp = bdhistory_to_boards(pp, gs)
 
@@ -187,10 +187,8 @@ class TestPreprocessingFeatures(unittest.TestCase):
             [0, 0, 0, 0, 0, 0, 0]])
 
         # check history length
-        self.assertEqual(len(own), s.history_length)
-        self.assertEqual(len(opp), s.history_length)
-        # check number of planes
-        self.assertEqual(own[0], (gs.size(), gs.size(), 2))
+        self.assertEqual(len(own), config['history_step'])
+        self.assertEqual(len(opp), config['history_step'])
         # check return value against hand-coded expectation
         # (given that current_player is black)
         # manually compare boards
@@ -209,7 +207,7 @@ class TestPreprocessingFeatures(unittest.TestCase):
 
         """
         gs = simple_board()
-        pp = Preprocess(["color"])
+        pp = StateTensorConverter(config, ["color"])
         feature = pp.state_to_tensor(gs)[0].transpose((1, 2, 0))
         # white is the current player, current player is NOT black, the value should be 0
         self.assertTrue(np.all(feature == np.zeros((7, 7))))
@@ -225,15 +223,15 @@ class TestPreprocessingFeatures(unittest.TestCase):
         """
 
         gs = simple_board()
-        pp = Preprocess(["board_history", "color"])
-        pp2 = Preprocess(["board_history"])
-        pp3 = Preprocess(["color"])
-        feature = pp.state_to_tensor(gs)[0].transpose((1, 2, 0))
-        bd_h = pp2.state_to_tensor(gs)[0].transpose((1, 2, 0))
-        bd_c = pp3.state_to_tensor(gs)[0].transpose((1, 2, 0))
+        pp = StateTensorConverter(config, ["board_history", "color"])
+        pp2 = StateTensorConverter(config, ["board_history"])
+        pp3 = StateTensorConverter(config, ["color"])
+        feature = pp.state_to_tensor(gs)[0]
+        bd_h = pp2.state_to_tensor(gs)[0]
+        bd_c = pp3.state_to_tensor(gs)[0]
 
-        self.assertTrue(np.all(feature[:, :, :-1] == bd_h[:, :, 1]))
-        self.assertTrue(np.all(feature[:, :, -1] == bd_c[:, :, 1]))
+        self.assertTrue(np.array_equal(feature[:-1, :, :],  bd_h))
+        self.assertTrue(np.array_equal(feature[-1:, :, :], bd_c))
 
 
 if __name__ == '__main__':

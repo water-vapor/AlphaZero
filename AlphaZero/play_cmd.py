@@ -14,7 +14,6 @@ if not os.path.exists(config_path):
 with open(config_path) as f:
     game_config = yaml.load(f)
 
-
 _state_tensor_converter = _preproc.StateTensorConverter(game_config)
 _tensor_action_converter = _preproc.TensorActionConverter(game_config)
 
