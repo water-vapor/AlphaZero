@@ -185,7 +185,14 @@ class MCTSearch(object):
             # Q(s,a)=W(s,a)
             # Return the black win value to update (recursively)
             else:
-                pass
+                # No valid move, game should end. Overwrite the value with the real game result.
+                winner = state.get_winner()
+                if winner == state.current_player:
+                    value = 1
+                elif winner == -state.current_player:
+                    value = -1
+                else:
+                    value = 0
             return value
 
     def _get_search_probs(self):
