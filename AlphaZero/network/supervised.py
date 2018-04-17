@@ -76,7 +76,7 @@ def evaluate(network, data_generator, tag="train", max_batch=None):
         loss, R_p, R_v = network.evaluate((state, action, result,))
         mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
         accuracies.append(np.mean(mask.astype(np.float32)))
-        mses.append(np.mean(np.square(R_v - result)))
+        mses.append(np.mean(np.square(R_v - result)) / 4.)
         if max_batch is not None and num >= max_batch:
             break
     accuracy = np.mean(accuracies)
