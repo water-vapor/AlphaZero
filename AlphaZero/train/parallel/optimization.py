@@ -117,7 +117,7 @@ class Datapool:
         self.pool_size = ext_config['pool_size']
         self.start_data_size = ext_config['start_data_size']
         self.store_path = ext_config.get('store_path')
-        self.load_prev = ext_config['load_prev']
+        self.load_prev = ext_config.get('load_prev')
 
         conn_num = ext_config['conn_num']
         self.rcpt = Reception(conn_num)

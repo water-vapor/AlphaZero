@@ -45,7 +45,7 @@ class Game:
                 printlog(str(self.state.turns), 'moves')
 
             move, probs = current_player.think(self.state, (
-                    self.state.turns <= self.dirichlet_before))  # TODO: dirichlet doesn't work
+                    self.state.turns <= self.dirichlet_before))
             self.state_history.append(self.state.copy())
             self.probs_history.append(probs)
             self.state.do_move(move)
@@ -78,7 +78,7 @@ class Game:
                     probs_np[i, self._w * self._h] = prob[1]
                 else:
                     probs_np[i, prob[0][0] * self._w + prob[0][1]] = prob[1]
-            result_np[i] = (i % 2 == (self.winner != self._game_env.BLACK))
+            result_np[i] = 1 if (i % 2 == (self.winner != self._game_env.BLACK)) else -1
         return state_np, probs_np, result_np
 
     # TODO: save state to sgf
