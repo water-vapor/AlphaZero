@@ -75,7 +75,7 @@ if __name__ == '__main__':
             current_player = player_1
 
     winner = current_state.get_winner()
-    if winner == None:
+    if winner == 0:
         print('Draw.')
     elif winner == 1:
         if first_i == 'Y':

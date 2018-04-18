@@ -31,7 +31,7 @@ class GameState(object):
         self.history_length = history_length
         self.board_history = [np.zeros((self.height, self.width), dtype=int) for _ in range(history_length - 1)]
         self.is_end_of_game = False
-        self.winner = 0
+        self.winner = None
         self.turns = 0
 
     def _on_board(self, position):
@@ -147,7 +147,7 @@ class GameState(object):
             # check if stone has filled the board if no one wins yet
             elif self.turns == self.height * self.width:
                 self.is_end_of_game = True
-                self.winner = None
+                self.winner = 0
 
             # next turn
             self.current_player = -color
