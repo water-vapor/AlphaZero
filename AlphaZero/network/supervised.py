@@ -1,16 +1,17 @@
 import argparse
 import os
 import random
-
 import h5py as h5
 import numpy as np
 import tensorflow as tf
 import yaml
+import multiprocessing as mp
 from itertools import chain
 from tqdm import tqdm
 
 from AlphaZero.network.main import Network
 
+maxsize = 100
 go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
 with open(go_config_path) as c:
     game_config = yaml.load(c)
@@ -19,34 +20,39 @@ supervised_config_path = os.path.join("AlphaZero", "config", "supervised.yaml")
 np.set_printoptions(threshold=np.nan)
 
 
-def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
-                                  indices, batch_size, shuffle=True, flip=False):
-    """A generator of shuffled batches of training data.
-    """
+class shuffled_hdf5_batch_generator:
 
-    def convert_action(action, size=19):
-        """Convert an action to a numpy array of shape (size * size + 1)
-        """
-        out_dim = size * size + 1
-        if len(action) == out_dim:
-            return np.asarray(action, dtype=np.float32)
-        x, y = tuple(action)
-        categorical = np.zeros(out_dim, dtype=np.float32)
-        categorical[int(size * x + y)] = 1
-        return categorical
+    def __init__(self, state_dataset, action_dataset, result_dataset, indices, batch_size, flip=False):
 
-    if shuffle:
-        random.shuffle(indices)
-    state_batch_shape = (batch_size,) + state_dataset.shape[1:]
-    game_size = state_batch_shape[-1]
-    Xbatch = np.zeros(state_batch_shape, dtype=np.float32)
-    Ybatch = np.zeros(
-        (batch_size, game_size * game_size + 1), dtype=np.float32)
-    Zbatch = np.zeros(batch_size, dtype=np.float32)
-    batch_idx = 0
-    for data_idx in indices:
+        self.state_dataset = state_dataset
+        self.action_dataset = action_dataset
+        self.result_dataset = result_dataset
+        self.indices = indices
+        self.batch_size = batch_size
+        self.flip = flip
+
+        self.state_size = state_dataset.shape[1:]
+        self.game_size = self.state_size[-1]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        indices = np.random.choice(self.indices, self.batch_size).tolist()
+        X, Y, Z = zip(*[self.transform(idx) for idx in indices])
+        return np.stack(X), np.stack(Y), np.stack(Z)
+
+    def transform(self, data_idx):
+        state_dataset = self.state_dataset
+        action_dataset = self.action_dataset
+        result_dataset = self.result_dataset
+        game_size = self.game_size
+        flip = self.flip
+
         state = np.array([plane for plane in state_dataset[data_idx]])
         h, w = action_dataset[data_idx]
+        result = result_dataset[data_idx][0]
+
         if flip:
             if h != game_size or w != 0:
                 flip_h = random.choice([True, False])
@@ -57,18 +63,13 @@ def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset,
                 if flip_w:
                     state = np.flip(state, axis=2)
                     w = game_size - 1 - w
-        action = convert_action((h, w), game_size)
-        result = result_dataset[data_idx]
-        Xbatch[batch_idx] = state
-        Ybatch[batch_idx] = action
-        Zbatch[batch_idx] = result
-        batch_idx += 1
-        if batch_idx == batch_size:
-            batch_idx = 0
-            yield (Xbatch, Ybatch, Zbatch)
+
+        action = np.zeros(game_size * game_size + 1, dtype=np.float32)
+        action[int(game_size * h + w)] = 1
+        return state, action, result
 
 
-def evaluate(network, data_generator, tag="train", max_batch=None):
+def evaluate(network, data_generator, max_batch, tag="train"):
     accuracies = []
     mses = []
     for num, batch in enumerate(data_generator):
@@ -77,7 +78,7 @@ def evaluate(network, data_generator, tag="train", max_batch=None):
         mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
         accuracies.append(np.mean(mask.astype(np.float32)))
         mses.append(np.mean(np.square(R_v - result)) / 4.)
-        if max_batch is not None and num >= max_batch:
+        if num >= max_batch:
             break
     accuracy = np.mean(accuracies)
     mse = np.mean(mses)
@@ -99,11 +100,11 @@ def run_training(cmd_line_args=None):
     parser.add_argument("--train_data", "-D",
                         help="A .h5 file of training data")
     parser.add_argument(
-        "--num_gpu", "-G", help="Number of GPU used for training. Default: 1", type=int, default=1)
+        "--num_gpu", "-G", help="Number of GPU used for training. Default: 1", type=int, default=4)
     parser.add_argument(
-        "--minibatch", "-B", help="Size of training data minibatches. Default: 64", type=int, default=64)
+        "--minibatch", "-B", help="Size of training data minibatches. Default: 64", type=int, default=512)
     parser.add_argument(
-        "--epochs", "-E", help="Total number of iterations on the data. Default: 20", type=int, default=20)
+        "--epochs", "-E", help="Total number of iterations on the data. Default: 20", type=int, default=30)
     parser.add_argument(
         "--log_iter", help="Number of steps to record training loss", type=int, default=100)
     parser.add_argument(
@@ -125,7 +126,7 @@ def run_training(cmd_line_args=None):
     else:
         args = parser.parse_args(cmd_line_args)
 
-    dataset = h5.File(args.train_data)
+    dataset = h5.File(args.train_data, "r")
     n_total_data = len(dataset["states"])
     n_train_data = int(args.train_val_test[0] * n_total_data)
     n_train_data = n_train_data - (n_train_data % args.minibatch)
@@ -146,17 +147,43 @@ def run_training(cmd_line_args=None):
                     config_file=supervised_config_path, mode="NCHW")
     writer = tf.summary.FileWriter(args.log_dir, model.sess.graph)
     total_batches = len(train_indices) // args.minibatch
+
+    train_data_generator = shuffled_hdf5_batch_generator(
+        dataset["states"],
+        dataset["actions"],
+        dataset["results"],
+        train_indices,
+        args.minibatch,
+        flip=True,
+    )
+    val_data_generator = shuffled_hdf5_batch_generator(
+        dataset["states"],
+        dataset["actions"],
+        dataset["results"],
+        val_indices,
+        args.minibatch,
+    )
+    eval_data_generator = shuffled_hdf5_batch_generator(
+        dataset["states"],
+        dataset["actions"],
+        dataset["results"],
+        eval_indices,
+        args.minibatch,
+    )
+
+    def fetch(it, q):
+        while True:
+            q.put(next(it))
+
+    q = mp.Queue(maxsize)
+    p = mp.Process(target=fetch, args=(train_data_generator, q,))
+    p.daemon = True
+    p.start()
+
     for epoch in range(args.epochs):
-        train_data_generator = shuffled_hdf5_batch_generator(
-            dataset["states"],
-            dataset["actions"],
-            dataset["results"],
-            train_indices,
-            args.minibatch,
-            flip=True,
-        )
         print("Epoch {}".format(epoch))
-        for batch in tqdm(train_data_generator, total=total_batches, ascii=True):
+        for _ in tqdm(range(total_batches), ascii=True):
+            batch = q.get()
             global_step = model.get_global_step() + 1
             loss = model.update(batch)
 
@@ -167,24 +194,10 @@ def run_training(cmd_line_args=None):
                 writer.flush()
 
             if global_step % args.test_iter == 0:
-                val_data_generator = shuffled_hdf5_batch_generator(
-                    dataset["states"],
-                    dataset["actions"],
-                    dataset["results"],
-                    val_indices,
-                    args.minibatch,
-                )
-                eval_data_generator = shuffled_hdf5_batch_generator(
-                    dataset["states"],
-                    dataset["actions"],
-                    dataset["results"],
-                    eval_indices,
-                    args.minibatch,
-                )
                 _, _, _, eval_sum = evaluate(
-                    model, eval_data_generator, tag="train", max_batch=args.num_batches)
+                    model, eval_data_generator, args.num_batches, tag="train")
                 _, _, _, val_sum = evaluate(
-                    model, val_data_generator, tag="val", max_batch=args.num_batches)
+                    model, val_data_generator, args.num_batches, tag="val")
                 for summ in chain(val_sum, eval_sum):
                     writer.add_summary(summ, global_step)
                 writer.flush()
@@ -198,7 +211,7 @@ def run_training(cmd_line_args=None):
             args.minibatch,
         )
         test_loss, test_accuracy, test_mse, test_sum = evaluate(
-            model, test_data_generator, tag="test")
+            model, test_data_generator, args.num_batches, tag="test")
         for summ in chain(val_sum, eval_sum):
             writer.add_summary(summ, global_step)
 

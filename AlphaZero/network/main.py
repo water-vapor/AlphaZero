@@ -19,6 +19,7 @@ class Network(object):
         self.num_gpu = num_gpu
         self._game_config = game_config
         self.mode = mode
+        self.global_step = 0
 
         learning_scheme = self.config["learning_rate"]
         boundaries = sorted([int(value) for value in learning_scheme.keys()])
@@ -52,7 +53,7 @@ class Network(object):
             v_list = []
 
             self.lr = tf.train.piecewise_constant(
-                self.models[0].global_step, boundaries[1:], values)
+                self.global_step, boundaries[1:], values)
             self.opt = tf.train.MomentumOptimizer(
                 self.lr, momentum=self.config["momentum"])
 
@@ -61,16 +62,16 @@ class Network(object):
                     model = self.models[idx]
                     loss = model.get_loss()
                     grad = self.opt.compute_gradients(loss)
-                    loss_list.append(loss)
-                    grad_list.append(grad)
-                    p_list.append(model.R_p)
-                    v_list.append(model.R_v)
+                    grad = [(tf.expand_dims(g, 0), var) for g, var in grad]
+                loss_list.append(loss)
+                grad_list.append(grad)
+                p_list.append(model.R_p)
+                v_list.append(model.R_v)
 
             self.loss = tf.add_n(loss_list) / len(loss_list)
-            self.grad = average_gradients(grad_list)
+            self.grad = average_gradients(grad_list, num_gpu=self.num_gpu)
 
-            train_op = [self.opt.apply_gradients(
-                self.grad, global_step=self.models[0].global_step)]
+            train_op = [self.opt.apply_gradients(self.grad)]
             train_op.extend(update_ops)
             self.train_op = tf.group(*train_op)
 
@@ -95,6 +96,7 @@ class Network(object):
         Return: Average loss of the batch
 
         '''
+
         feed_dict = {}
         for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
             feed_dict[model.x] = batch[0]
@@ -103,6 +105,7 @@ class Network(object):
             feed_dict[model.is_train] = True
         loss, train_op = self.sess.run(
             [self.loss, self.train_op], feed_dict=feed_dict)
+        self.global_step += 1
         return loss
 
     def response(self, data):
@@ -146,11 +149,10 @@ class Network(object):
         return loss, R_p, R_v
 
     def get_global_step(self):
-        return self.sess.run(self.models[0].global_step)
+        return self.global_step
 
     def save(self, filename):
-        global_step = self.get_global_step()
-        self.saver.save(self.sess, filename, global_step=global_step)
+        self.saver.save(self.sess, filename, global_step=self.global_step)
 
     def load(self, filename):
         self.saver.restore(self.sess, filename)
