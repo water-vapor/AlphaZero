@@ -177,7 +177,7 @@ class MCTSearch(object):
             children_candidates = [(action, prob) for action, prob in children_candidates if state.is_legal(action)]
             # If not the end of game, expand node and terminate playout.
             # Else just terminate playout.
-            if len(children_candidates) != 0:
+            if len(children_candidates) != 0 and not state.is_end_of_game:
                 # Value stored (total action value) is always relative to itself
                 # i.e. 1 if it wins and -1 if it loses
                 # value returned by NN has -1 when white wins, multiplication will inverse
@@ -186,13 +186,9 @@ class MCTSearch(object):
             # Return the black win value to update (recursively)
             else:
                 # No valid move, game should end. Overwrite the value with the real game result.
-                winner = state.get_winner()
-                if winner == state.current_player:
-                    value = 1
-                elif winner == -state.current_player:
-                    value = -1
-                else:
-                    value = 0
+                # Game result is absolute: 1, 0, or -1
+                value = state.get_winner()
+                node.update(state.current_player * value)
             return value
 
     def _get_search_probs(self):
