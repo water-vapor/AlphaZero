@@ -83,6 +83,9 @@ class GameState(object):
         other.current_player = self.current_player
         other.history = list(self.history)
         other.board_history = deepcopy(self.board_history)
+        other.turns = self.turns
+        other.is_end_of_game = self.is_end_of_game
+        other.stones_played = self.stones_played
         return other
 
     def is_legal(self, action):

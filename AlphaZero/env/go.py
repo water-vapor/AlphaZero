@@ -208,6 +208,7 @@ class GameState(object):
         other.enforce_superko = self.enforce_superko
         other.current_hash = self.current_hash.copy()
         other.previous_hashes = self.previous_hashes.copy()
+        other.turns = self.turns
 
         # update liberty and group sets.
         #
