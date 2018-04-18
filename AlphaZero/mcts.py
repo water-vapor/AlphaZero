@@ -157,7 +157,7 @@ class MCTSearch(object):
             # Visit count is updated when. this node is first called with _playout
             # Therefore there is no visit count update in update()
             # Update relative value
-            node.update(current_player * simres_value)
+            node.update(-current_player * simres_value)
             # Return the same result to the parent
             return simres_value
 
@@ -181,14 +181,14 @@ class MCTSearch(object):
                 # Value stored (total action value) is always relative to itself
                 # i.e. 1 if it wins and -1 if it loses
                 # value returned by NN has -1 when white wins, multiplication will inverse
-                node.expand(children_candidates, state.current_player * value)
+                node.expand(children_candidates, -state.current_player * value)
             # Q(s,a)=W(s,a)
             # Return the black win value to update (recursively)
             else:
                 # No valid move, game should end. Overwrite the value with the real game result.
                 # Game result is absolute: 1, 0, or -1
                 value = state.get_winner()
-                node.update(state.current_player * value)
+                node.update(-state.current_player * value)
             return value
 
     def _get_search_probs(self):
