@@ -34,6 +34,7 @@ class Evaluator:
         self.proc = mp.Process(target=self.run, name='evaluator')
         self.r_conn, self.s_conn = r_conn, s_conn
         self.win_counter = mp.Value('i', 0)
+        self.num_not_tie = mp.Value('i', 0)
 
         self.num_worker = ext_config['num_worker']
         self.worker_lim = mp.Semaphore(self.num_worker)
@@ -66,6 +67,8 @@ class Evaluator:
         winner = game.start()
         if winner == color_of_new:
             self.win_counter.value += 1
+        if winner is not None and winner != 0:
+            self.num_not_tie.value += 1
         printlog('winner', winner)
 
         self.worker_lim.release()
@@ -84,6 +87,7 @@ class Evaluator:
             printlog('load network')
             self.nn_eval_chal.load('./' + self.game_config['name'] + '_model/ckpt-' + str(new_model_path))
             self.win_counter.value = 0
+            self.num_not_tie.value = 0
             self.finished_worker.value = 0
             # open pool
             color_of_new_list = [_game_env.BLACK, _game_env.WHITE] * (self.num_games // 2) + [
@@ -93,8 +97,8 @@ class Evaluator:
                 mp.Process(target=self.eval_wrapper, args=(c,), name='eval_game_' + str(i)).start()
             # wait
             self.join_worker.acquire()
-            printlog('win rate', self.win_counter.value / self.num_games)
-            if self.win_counter.value >= int(0.55 * self.num_games):
+            printlog('win rate', self.win_counter.value / self.num_not_tie.value)
+            if self.win_counter.value >= int(0.55 * self.num_not_tie.value):
                 # save model
                 # self.nn_eval_chal.save('./model/best_name')
                 # send path
