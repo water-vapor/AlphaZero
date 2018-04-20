@@ -30,11 +30,11 @@ def get_player_by_type(type_id):
         nn_eval.load(config['save_dir'])
         return NNPlayer(nn_eval, game_config)
     elif type_id == 3:
-        return MCTSPlayer(DummyEvaluator(), game_config, config)
+        return MCTSPlayer(DummyEvaluator(), game_config, config['raw_mcts'])
     elif type_id == 4:
         nn_eval = NNEvaluator()
         nn_eval.load(config['save_dir'])
-        return MCTSPlayer(nn_eval, game_config, config)
+        return MCTSPlayer(nn_eval, game_config, config['mcts_nn'])
     else:
         assert False
 
