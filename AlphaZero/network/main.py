@@ -4,6 +4,8 @@ import yaml
 
 from AlphaZero.network.model import Model
 from AlphaZero.network.util import average_gradients, batch_split
+from tensorflow.python.client import timeline
+
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 
@@ -27,6 +29,7 @@ class Network(object):
 
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
+        sess_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
         server = tf.train.Server(
             cluster, job_name=job, task_index=0, config=sess_config)
         self.sess = tf.Session(target=server.target)
@@ -35,41 +38,41 @@ class Network(object):
 
             self.models = []
 
-            with tf.variable_scope("models"):
-                for idx in range(self.num_gpu):
-                    reuse = bool(idx != 0)
-                    with tf.variable_scope("model", reuse=reuse):
-                        with tf.name_scope("model_{}".format(idx)) as name_scope, tf.device("/GPU:{}".format(idx)):
-                            model = Model(
-                                self.config, name_scope, self._game_config, mode=self.mode, reuse=reuse)
-                            self.models.append(model)
-                            if idx == 0:
-                                update_ops = tf.get_collection(
-                                    tf.GraphKeys.UPDATE_OPS, name_scope)
+            self.lr = tf.train.piecewise_constant(
+                self.global_step, boundaries[1:], values)
+            self.opt = tf.train.MomentumOptimizer(
+                self.lr, momentum=self.config["momentum"])
 
             loss_list = []
             grad_list = []
             p_list = []
             v_list = []
 
-            self.lr = tf.train.piecewise_constant(
-                self.global_step, boundaries[1:], values)
-            self.opt = tf.train.MomentumOptimizer(
-                self.lr, momentum=self.config["momentum"])
-
             for idx in range(self.num_gpu):
-                with tf.name_scope("model_{}".format(idx)) as name_scope, tf.device("/GPU:{}".format(idx)):
-                    model = self.models[idx]
-                    loss = model.get_loss()
-                    grad = self.opt.compute_gradients(loss)
-                    grad = [(tf.expand_dims(g, 0), var) for g, var in grad]
+                reuse = bool(idx != 0)
+                with tf.variable_scope("model", reuse=reuse):
+                    with tf.name_scope("model_{}".format(idx)) as name_scope, tf.device(
+                            tf.train.replica_device_setter(worker_device="/gpu:{}".format(idx), ps_device='/cpu:0', ps_tasks=1)):
+                        model = Model(
+                            self.config, name_scope, self._game_config, mode=self.mode, reuse=reuse)
+                        loss = model.get_loss()
+                        grad = self.opt.compute_gradients(
+                            loss, colocate_gradients_with_ops=True)
+                        grad = [(tf.expand_dims(g, 0), var)
+                                for g, var in grad]
+
+                        self.models.append(model)
+                        if idx == 0:
+                            update_ops = tf.get_collection(
+                                tf.GraphKeys.UPDATE_OPS, name_scope)
+
                 loss_list.append(loss)
                 grad_list.append(grad)
                 p_list.append(model.R_p)
                 v_list.append(model.R_v)
 
             self.loss = tf.add_n(loss_list) / len(loss_list)
-            self.grad = average_gradients(grad_list, num_gpu=self.num_gpu)
+            self.grad = average_gradients(grad_list)
 
             train_op = [self.opt.apply_gradients(self.grad)]
             train_op.extend(update_ops)

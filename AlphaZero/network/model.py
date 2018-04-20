@@ -1,5 +1,5 @@
 import tensorflow as tf
-from AlphaZero.network.util import batch_norm, linear, get_variable_on_cpu
+from AlphaZero.network.util import batch_norm, linear
 
 import AlphaZero.workaround.softmax_v2 as softmax_v2
 
@@ -40,15 +40,15 @@ class Model(object):
         else:
             inputs = self.x
 
-        W0 = get_variable_on_cpu("W0", [3, 3, self._f, 256])
+        W0 = tf.get_variable("W0", [3, 3, self._f, 256])
         R = tf.nn.conv2d(inputs, W0, strides=[
             1, 1, 1, 1], padding='SAME', data_format=self.mode)
         R = _activation(batch_norm(R, config, self.is_train, mode=self.mode))
 
         for layer in range(config["num_blocks"]):
             with tf.variable_scope("resblock_{}".format(layer)):
-                W1 = get_variable_on_cpu("W1", [3, 3, 256, 256])
-                W2 = get_variable_on_cpu("W2", [3, 3, 256, 256])
+                W1 = tf.get_variable("W1", [3, 3, 256, 256])
+                W2 = tf.get_variable("W2", [3, 3, 256, 256])
                 R1 = tf.nn.conv2d(
                     R, W1, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
                 R1 = _activation(batch_norm(
@@ -60,7 +60,7 @@ class Model(object):
                 R = _activation(tf.add(R, R2))
 
         with tf.variable_scope("policy_head"):
-            W0 = get_variable_on_cpu("W0", [1, 1, 256, 2])
+            W0 = tf.get_variable("W0", [1, 1, 256, 2])
             R_p = tf.nn.conv2d(
                 R, W0, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
             R_p = tf.reshape(_activation(batch_norm(
@@ -69,7 +69,7 @@ class Model(object):
             R_p = tf.nn.softmax(logits)
 
         with tf.variable_scope("value_head"):
-            W0 = get_variable_on_cpu("W0", [1, 1, 256, 1])
+            W0 = tf.get_variable("W0", [1, 1, 256, 1])
             R_v = tf.nn.conv2d(
                 R, W0, strides=[1, 1, 1, 1], padding='SAME', data_format=self.mode)
             R_v = tf.reshape(_activation(batch_norm(
