@@ -4,7 +4,6 @@ import yaml
 
 from AlphaZero.network.model import Model
 from AlphaZero.network.util import average_gradients, batch_split
-from tensorflow.python.client import timeline
 
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"

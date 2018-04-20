@@ -17,14 +17,8 @@ def batch_split(num, *args):
 
 def batch_norm(x, config, is_train=True, scope="bn", mode="NHWC"):
     with tf.variable_scope(scope):
-        res = tf.contrib.layers.batch_norm(
-            x, decay=config["batch_decay"], center=False, scale=False, is_training=is_train, fused=True, data_format=mode)
-        dim = x.get_shape()[-1]
-        w = tf.get_variable(
-            "w", [dim], initializer=tf.constant_initializer(1.))
-        b = tf.get_variable(
-            "b", [dim], initializer=tf.constant_initializer(0.))
-        return res * w + b
+        return tf.contrib.layers.batch_norm(
+            x, decay=config["batch_decay"], center=True, scale=False, is_training=is_train, fused=True, data_format=mode)
 
 
 def linear(x, dim, bias, bias_start=0., scope="linear"):
