@@ -2,7 +2,7 @@ import yaml
 import AlphaZero.network.main as network
 import AlphaZero.interface.gtp_wrapper as gtp_wrapper
 import AlphaZero.processing.state_converter as _preproc
-import AlphaZero.mcts as MCTS
+import AlphaZero.search.mcts as MCTS
 import numpy as np
 
 with open('AlphaZero/config/go.yaml') as c:

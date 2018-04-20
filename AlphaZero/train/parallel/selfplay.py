@@ -7,12 +7,11 @@ import time
 import os
 import multiprocessing as mp
 import threading as thrd
-
 import tensorflow as tf
 
 # import AlphaZero.game.go.gameplay as gameplay
 from AlphaZero.train.parallel.util import *
-import AlphaZero.game.nn_eval as nn_eval
+import AlphaZero.evaluator.nn_eval_parallel as nn_eval
 
 with open('AlphaZero/config/game.yaml') as f:
     game_selection = yaml.load(f)['game']
@@ -107,7 +106,7 @@ class Selfplay:
             printlog_thrd('connected to', client_address[0])
             ultimate_buffer = b''
             while True:
-                receiving_buffer = client_connection.recv(2**20)
+                receiving_buffer = client_connection.recv(2 ** 20)
                 if not len(receiving_buffer): break
                 ultimate_buffer += receiving_buffer
             final_image = pickle.loads(ultimate_buffer)
@@ -127,13 +126,14 @@ class Selfplay:
             printlog_thrd('connected to', client_address[0])
             ultimate_buffer = b''
             while True:
-                receiving_buffer = client_connection.recv(2**20)
+                receiving_buffer = client_connection.recv(2 ** 20)
                 if not len(receiving_buffer): break
                 ultimate_buffer += receiving_buffer
             final_image = pickle.loads(ultimate_buffer)
             client_connection.close()
             printlog_thrd('frame received')
             self.nn_eval.load(final_image)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Data generator for trainer.')
@@ -151,7 +151,7 @@ if __name__ == '__main__':
     with open('AlphaZero/config/rl_sys_config.yaml') as f:
         ext_config = yaml.load(f)
 
-    cluster = tf.train.ClusterSpec({'best':['localhost:4335']})
+    cluster = tf.train.ClusterSpec({'best': ['localhost:4335']})
     ext_config['selfplay']['remote'] = True
 
     mp.freeze_support()
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     dgen_opti_q = Remote_Queue(args.addr, ext_config['selfplay']['remote_port'])
 
     with nn_eval.NNEvaluator(cluster, game_config, ext_config['best']) as nn_eval_best, \
-         Selfplay(nn_eval_best, eval_dgen_r, dgen_opti_q, game_config, ext_config['selfplay']) as dgen:
+            Selfplay(nn_eval_best, eval_dgen_r, dgen_opti_q, game_config, ext_config['selfplay']) as dgen:
 
         while True:
             time.sleep(30)

@@ -86,7 +86,7 @@ class TensorActionConverter(object):
         """
 
         Args:
-            tensor: a 1D prob tensor with length 225
+            tensor: a 1D prob tensor with length flat_move_output
 
         Returns:
             a list of (action, prob)

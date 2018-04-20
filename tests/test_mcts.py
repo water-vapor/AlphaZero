@@ -3,7 +3,7 @@ import numpy as np
 import yaml
 from operator import itemgetter
 from AlphaZero.env.go import GameState
-from AlphaZero.mcts import MCTreeNode, MCTSearch
+from AlphaZero.search.mcts import MCTreeNode, MCTSearch
 
 with open('tests/go_test.yaml') as f:
     config = yaml.load(f)

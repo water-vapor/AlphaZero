@@ -3,7 +3,7 @@ import math
 
 from numpy.random import randint
 
-from AlphaZero.math_helper import random_variate_dirichlet, weighted_random_choice
+from AlphaZero.search.math_helper import random_variate_dirichlet, weighted_random_choice
 
 # Parameter for PUCT Algorithm
 c_punt = 5.0

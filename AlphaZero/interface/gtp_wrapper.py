@@ -3,7 +3,6 @@ import multiprocessing
 import gtp
 from AlphaZero.env import go
 from AlphaZero.util import save_gamestate_to_sgf
-import AlphaZero.game.player as player
 
 
 def run_gnugo(sgf_file_name, command):

@@ -2,11 +2,9 @@ import argparse
 import multiprocessing as mp
 import os
 import time
-
 import tensorflow as tf
 import yaml
-
-import AlphaZero.game.nn_eval as nn_eval
+import AlphaZero.evaluator.nn_eval_parallel as nn_eval
 import AlphaZero.train.parallel.evaluator as evaluator
 import AlphaZero.train.parallel.optimization as optimization
 import AlphaZero.train.parallel.selfplay as selfplay

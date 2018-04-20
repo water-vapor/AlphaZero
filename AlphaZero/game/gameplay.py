@@ -1,9 +1,8 @@
 import importlib
 
 import numpy as np
-import yaml
 
-import AlphaZero.game.player as player
+import AlphaZero.player.mcts_player as player
 from AlphaZero.train.parallel.util import *
 
 
