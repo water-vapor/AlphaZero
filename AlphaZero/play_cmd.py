@@ -5,8 +5,9 @@ from tabulate import tabulate
 from AlphaZero.player.mcts_player import Player as MCTSPlayer
 from AlphaZero.player.cmd_player import Player as UserPlayer
 from AlphaZero.player.nn_player import Player as NNPlayer
-from AlphaZero.evaluator.nn_eval_seq import NNEvaluator
+from AlphaZero.evaluator.nn_eval_parallel import NNEvaluator
 from AlphaZero.evaluator.dummy_eval import DummyEvaluator
+import tensorflow as tf
 
 with open('AlphaZero/config/play_cmd.yaml') as f:
     config = yaml.load(f)
@@ -22,18 +23,30 @@ board_display = {1: 'X', -1: 'O', 0: ' '}
 player_type = {1: 'Human Player', 2: 'Raw NN Player', 3: 'Raw MCTS Player', 4: 'MCTS-NN Player'}
 
 
-def get_player_by_type(type_id):
+def get_player_by_type(type_id, cluster, job):
     if type_id == 1:
         return UserPlayer()
     elif type_id == 2:
-        nn_eval = NNEvaluator()
-        nn_eval.load(config['save_dir'])
+        ext_config = {
+            'job': job,
+            'num_gpu': 1,
+            'load_path': config['save_dir'],
+            'max_batch_size': 32
+        }
+        nn_eval = NNEvaluator(cluster, game_config, ext_config)
+        nn_eval.__enter__()
         return NNPlayer(nn_eval, game_config)
     elif type_id == 3:
         return MCTSPlayer(DummyEvaluator(), game_config, config['raw_mcts'])
     elif type_id == 4:
-        nn_eval = NNEvaluator()
-        nn_eval.load(config['save_dir'])
+        ext_config = {
+            'job': job,
+            'num_gpu': 1,
+            'load_path': config['save_dir'],
+            'max_batch_size': 32
+        }
+        nn_eval = NNEvaluator(cluster, game_config, ext_config)
+        nn_eval.__enter__()
         return MCTSPlayer(nn_eval, game_config, config['mcts_nn'])
     else:
         assert False
@@ -52,22 +65,29 @@ if __name__ == '__main__':
     _game_env = importlib.import_module(game_config['env_path'])
     current_state = _game_env.GameState()
     winner = None
-    for i in range(1,5):
+    for i in range(1, 5):
         print(i, '. ', player_type[i])
     first_choice, second_choice = 0, 0
     while not (first_choice in [1, 2, 3, 4] and second_choice in [1, 2, 3, 4]):
         first_choice, second_choice = [int(i) for i in
                                        input('Please select the first and the second player\'s type as X Y:').split()]
-    player_1 = get_player_by_type(first_choice)
-    player_2 = get_player_by_type(second_choice)
+    cluster_spec = {}
+    if first_choice in [2, 4]:
+        cluster_spec['net1'] = ['127.0.0.1:3333']
+    if second_choice in [2, 4]:
+        cluster_spec['net2'] = ['127.0.0.1:3334']
+    cluster = tf.train.ClusterSpec(cluster_spec)
+    player_1 = get_player_by_type(first_choice, cluster, 'net1')
+    player_2 = get_player_by_type(second_choice, cluster, 'net2')
     current_player = player_1
-    first_players_turn = True
+    first_players_turn = 1
     while not current_state.is_end_of_game:
 
         print_board(current_state.board)
         current_move, _ = current_player.think(current_state)
-        print(player_type[first_choice if first_players_turn else second_choice], ' plays at ', current_move)
-        first_players_turn = not first_players_turn
+        print(player_type[first_choice if first_players_turn == 1 else second_choice],
+              first_players_turn if first_choice == second_choice else '', ' plays at ', current_move)
+        first_players_turn = 3 - first_players_turn
         current_state.do_move(current_move)
         player_1.ack(current_move)
         player_2.ack(current_move)
