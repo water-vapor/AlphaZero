@@ -90,16 +90,18 @@ class shuffled_hdf5_batch_generator:
 
 
 def evaluate(network, data_generator, max_batch, tag="train"):
+    losses = []
     accuracies = []
     mses = []
     for num, batch in enumerate(data_generator):
         state, action, result = batch
-        loss, R_p, R_v = network.evaluate((state, action, result,))
-        mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
-        accuracies.append(np.mean(mask.astype(np.float32)))
-        mses.append(np.mean(np.square(R_v - result)) / 4.)
+        loss, acc, mse = network.evaluate((state, action, result,))
+        losses.append(loss)
+        accuracies.append(acc)
+        mses.append(mse)
         if num >= max_batch:
             break
+    loss = np.mean(losses)
     accuracy = np.mean(accuracies)
     mse = np.mean(mses)
     loss_sum = tf.Summary(value=[tf.Summary.Value(

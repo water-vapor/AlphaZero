@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 import yaml
+import numpy as np
 
 from AlphaZero.network.model import Model
 from AlphaZero.network.util import average_gradients, batch_split
@@ -135,12 +136,13 @@ class Network(object):
                state: numpy array of shape [None, 17, 19, 19]
                action: numpy array of shape [None, 362]
                result: numpy array of shape [None]
-        Return: (loss, R_p, R_v)
+        Return: (loss, acc, mse)
                 loss: average loss of the batch
-                R_p: probability distribution of action, numpy array of shape [None, 362]
-                R_v: expected value of current state, numpy array of shape [None]
+                acc: prediction accuracy
+                mse: mse of game outcome, scala
         '''
         feed_dict = {}
+        state, action, result = data
         for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
             feed_dict[model.x] = batch[0]
             feed_dict[model.p] = batch[1]
@@ -148,7 +150,10 @@ class Network(object):
             feed_dict[model.is_train] = False
         loss, R_p, R_v = self.sess.run(
             [self.loss, self.R_p, self.R_v], feed_dict=feed_dict)
-        return loss, R_p, R_v
+        mask = np.argmax(R_p, axis=1) == np.argmax(action, axis=1)
+        acc = np.mean(mask.astype(np.float32))
+        mse = np.mean(np.square(result - R_v)) / 4.
+        return loss, acc, mse
 
     def get_global_step(self):
         return self.global_step
