@@ -23,7 +23,7 @@ np.set_printoptions(threshold=np.nan)
 
 class shuffled_hdf5_batch_generator:
 
-    def __init__(self, state_dataset, action_dataset, result_dataset, indices, batch_size, lock, flip=False, chunk_size=None):
+    def __init__(self, state_dataset, action_dataset, result_dataset, indices, batch_size, lock, flip=False, chunk_size=None, chunk_buffer=None):
 
         self.state_dataset = state_dataset
         self.action_dataset = action_dataset
@@ -34,6 +34,7 @@ class shuffled_hdf5_batch_generator:
         self.lock = lock
         self.data_size = len(state_dataset)
         self.chunk_size = 1 if chunk_size is None else chunk_size
+        self.chunk_buffer = 1 if chunk_buffer is None else chunk_buffer
 
         self.state_size = state_dataset.shape[1:]
         self.game_size = self.state_size[-1]
@@ -48,11 +49,16 @@ class shuffled_hdf5_batch_generator:
         with self.lock:
             for _ in range(self.batch_size // self.chunk_size):
                 start = np.random.randint(
-                    0, self.data_size - self.chunk_size + 1)
-                end = start + self.chunk_size
-                states.append(np.asarray(self.state_dataset[start: end]))
-                actions.append(np.asarray(self.action_dataset[start: end]))
-                results.append(np.asarray(self.result_dataset[start: end]))
+                    0, self.data_size - self.chunk_buffer + 1)
+                end = start + self.chunk_buffer
+                indices = np.random.choice(
+                    list(range(end - start)), size=self.chunk_size)
+                states.append(np.asarray(
+                    self.state_dataset[start: end][indices]))
+                actions.append(np.asarray(
+                    self.action_dataset[start: end][indices]))
+                results.append(np.asarray(
+                    self.result_dataset[start: end][indices]))
         states = np.concatenate(states)
         actions = np.concatenate(actions)
         results = np.concatenate(results)
@@ -119,31 +125,33 @@ def run_training(cmd_line_args=None):
     """
     parser = argparse.ArgumentParser(
         description='Perform supervised training on a policy network.')
-    parser.add_argument("--train_data", "-D",
-                        help="A .h5 file of training data")
-    parser.add_argument(
-        "--num_gpu", "-G", help="Number of GPU used for training. Default: 4", type=int, default=4)
-    parser.add_argument(
-        "--batch_size", "-B", help="Size of training data minibatches. Default: 512", type=int, default=512)
-    parser.add_argument(
-        "--chunk_size", "-C", help="Size of chunks in dataset. Default: 16", type=int, default=16)
-    parser.add_argument(
-        "--epochs", "-E", help="Total number of iterations on the data. Default: 20", type=int, default=30)
-    parser.add_argument(
-        "--log_iter", help="Number of steps to record training loss", type=int, default=100)
-    parser.add_argument(
-        "--test_iter", help="Number of steps to calculate acc and mse", type=int, default=1000)
-    parser.add_argument(
-        "--num_batches", help="Number of batches to evaluate the network", type=int, default=150)
+    parser.add_argument("--train_data",
+                        help="A .h5 file of training data", type=str)
+    parser.add_argument("--num_gpu",
+                        help="Number of GPU. Default: 4", type=int, default=4)
+    parser.add_argument("--batch_size",
+                        help="Size of minibatches. Default: 512", type=int, default=512)
+    parser.add_argument("--chunk_size",
+                        help="Size of chunks in dataset. Default: 16", type=int, default=16)
+    parser.add_argument("--chunk_buffer",
+                        help="Size of chunk buffer in dataset. Default: 128", type=int, default=128)
+    parser.add_argument("--num_epoch",
+                        help="Number of epoches. Default: 500", type=int, default=500)
+    parser.add_argument("--log_iter",
+                        help="Number of steps to record training loss", type=int, default=100)
+    parser.add_argument("--test_iter",
+                        help="Number of steps to evaluate", type=int, default=1000)
+    parser.add_argument("--num_batches",
+                        help="Number of batches for evaluation", type=int, default=50)
     parser.add_argument("--train-val-test",
-                        help="Fraction of data to use for training/val/test. Must sum to 1. Invalid if restarting training",
-                        nargs=3, type=float, default=[0.93, .05, .02])
-    parser.add_argument(
-        "--log_dir", help="Directory for storing training and evaluation event file", type=str, default="log")
-    parser.add_argument(
-        "--save_dir", help="Directory for storing the latest model", type=str, default="model")
-    parser.add_argument(
-        "--resume", "-R", help="load checkpoint", type=bool, default=False)
+                        help="Fraction of data to use for training/val. Must sum to 1.",
+                        nargs=2, type=float, default=[0.95, .05])
+    parser.add_argument("--log_dir",
+                        help="Directory for tf event file", type=str, default="log")
+    parser.add_argument("--save_dir",
+                        help="Directory for tf models", type=str, default="model")
+    parser.add_argument("--resume",
+                        help="load checkpoint", type=bool, default=False)
 
     if cmd_line_args is None:
         args = parser.parse_args()
@@ -153,20 +161,16 @@ def run_training(cmd_line_args=None):
     dataset = h5.File(args.train_data, "r")
     n_total_data = len(dataset["states"])
     n_train_data = int(args.train_val_test[0] * n_total_data)
-    n_train_data = n_train_data - (n_train_data % args.batch_size)
-    n_val_data = int(args.train_val_test[1] * n_total_data)
-    n_val_data = n_val_data - (n_val_data % args.batch_size)
-    n_test_data = n_total_data - n_train_data - n_val_data
+    n_val_data = n_total_data - n_train_data
 
-    print("Dataset loaded, {} samples, {} training samples, {} validaion samples, {} test samples".format(
-        n_total_data, n_train_data, n_val_data, n_test_data))
+    print("Dataset loaded, {} samples, {} training samples, {} validaion samples".format(
+        n_total_data, n_train_data, n_val_data))
     print("START TRAINING")
 
     shuffle_indices = np.random.permutation(n_total_data)
     train_indices = shuffle_indices[0: n_train_data]
     eval_indices = shuffle_indices[0: n_train_data]
-    val_indices = shuffle_indices[n_train_data: n_train_data + n_val_data]
-    test_indices = shuffle_indices[n_train_data + n_val_data:]
+    val_indices = shuffle_indices[n_train_data:]
     model = Network(game_config, args.num_gpu, pretrained=args.resume,
                     config_file=supervised_config_path, mode="NCHW")
     writer = tf.summary.FileWriter(args.log_dir, model.sess.graph)
@@ -183,6 +187,7 @@ def run_training(cmd_line_args=None):
         lock=lock,
         flip=True,
         chunk_size=args.chunk_size,
+        chunk_buffer=args.chunk_buffer,
     )
     val_data_generator = shuffled_hdf5_batch_generator(
         dataset["states"],
@@ -191,7 +196,6 @@ def run_training(cmd_line_args=None):
         val_indices,
         args.batch_size,
         lock=lock,
-        chunk_size=args.chunk_size,
     )
     eval_data_generator = shuffled_hdf5_batch_generator(
         dataset["states"],
@@ -200,16 +204,6 @@ def run_training(cmd_line_args=None):
         eval_indices,
         args.batch_size,
         lock=lock,
-        chunk_size=args.chunk_size,
-    )
-    test_data_generator = shuffled_hdf5_batch_generator(
-        dataset["states"],
-        dataset["actions"],
-        dataset["results"],
-        test_indices,
-        args.batch_size,
-        lock=lock,
-        chunk_size=args.chunk_size
     )
 
     def fetch(it, q):
@@ -222,7 +216,7 @@ def run_training(cmd_line_args=None):
         p.daemon = True
         p.start()
 
-    for epoch in range(args.epochs):
+    for epoch in range(args.num_epoch):
         print("Epoch {}".format(epoch))
         for _ in tqdm(range(total_batches), ascii=True):
             batch = q.get()
@@ -244,11 +238,6 @@ def run_training(cmd_line_args=None):
                     writer.add_summary(summ, global_step)
                 writer.flush()
                 model.save(os.path.join(args.save_dir, "model"))
-
-        test_loss, test_accuracy, test_mse, test_sum = evaluate(
-            model, test_data_generator, args.num_batches, tag="test")
-        for summ in chain(val_sum, eval_sum):
-            writer.add_summary(summ, global_step)
 
 
 if __name__ == '__main__':
