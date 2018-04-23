@@ -21,7 +21,8 @@ class Network(object):
         self.num_gpu = num_gpu
         self._game_config = game_config
         self.mode = mode
-        self.global_step = 0
+        self.global_step = tf.get_variable("global_step", [], dtype=tf.int32,
+                                           trainable=False, initializer=tf.constant_initializer(0))
 
         learning_scheme = self.config["learning_rate"]
         boundaries = sorted([int(value) for value in learning_scheme.keys()])
@@ -74,7 +75,8 @@ class Network(object):
             self.loss = tf.add_n(loss_list) / len(loss_list)
             self.grad = average_gradients(grad_list)
 
-            train_op = [self.opt.apply_gradients(self.grad)]
+            train_op = [self.opt.apply_gradients(
+                self.grad, global_step=self.global_step)]
             train_op.extend(update_ops)
             self.train_op = tf.group(*train_op)
 
@@ -108,7 +110,6 @@ class Network(object):
             feed_dict[model.is_train] = True
         loss, train_op = self.sess.run(
             [self.loss, self.train_op], feed_dict=feed_dict)
-        self.global_step += 1
         return loss
 
     def response(self, data):
@@ -156,10 +157,11 @@ class Network(object):
         return loss, acc, mse
 
     def get_global_step(self):
-        return self.global_step
+        return self.sess.run(self.global_step)
 
     def save(self, filename):
-        self.saver.save(self.sess, filename, global_step=self.global_step)
+        self.saver.save(self.sess, filename,
+                        global_step=self.get_global_step())
 
     def load(self, filename):
         self.saver.restore(self.sess, filename)
