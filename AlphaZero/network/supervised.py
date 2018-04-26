@@ -23,16 +23,16 @@ np.set_printoptions(threshold=np.nan)
 
 class shuffled_hdf5_batch_generator:
 
-    def __init__(self, state_dataset, action_dataset, result_dataset, indices, batch_size, lock, flip=False, chunk_size=None, chunk_buffer=None):
+    def __init__(self, state_dataset, action_dataset, result_dataset, start_idx, end_idx, batch_size, lock, flip=False, chunk_size=None, chunk_buffer=None):
 
         self.state_dataset = state_dataset
         self.action_dataset = action_dataset
         self.result_dataset = result_dataset
-        self.indices = indices
+        self.start_idx = start_idx
+        self.end_idx = end_idx
         self.batch_size = batch_size
         self.flip = flip
         self.lock = lock
-        self.data_size = len(state_dataset)
         self.chunk_size = 1 if chunk_size is None else chunk_size
         self.chunk_buffer = 1 if chunk_buffer is None else chunk_buffer
 
@@ -49,7 +49,7 @@ class shuffled_hdf5_batch_generator:
         with self.lock:
             for _ in range(self.batch_size // self.chunk_size):
                 start = np.random.randint(
-                    0, self.data_size - self.chunk_buffer + 1)
+                    self.start_idx, self.end_idx - self.chunk_buffer + 1)
                 end = start + self.chunk_buffer
                 indices = np.random.choice(
                     list(range(end - start)), size=self.chunk_size)
@@ -162,19 +162,15 @@ def run_training(cmd_line_args=None):
     n_total_data = len(dataset["states"])
     n_train_data = int(args.train_val_test[0] * n_total_data)
     n_val_data = n_total_data - n_train_data
+    total_batches = n_train_data // args.batch_size
 
     print("Dataset loaded, {} samples, {} training samples, {} validaion samples".format(
         n_total_data, n_train_data, n_val_data))
     print("START TRAINING")
 
-    shuffle_indices = np.random.permutation(n_total_data)
-    train_indices = shuffle_indices[0: n_train_data]
-    eval_indices = shuffle_indices[0: n_train_data]
-    val_indices = shuffle_indices[n_train_data:]
     model = Network(game_config, args.num_gpu, pretrained=args.resume,
                     config_file=supervised_config_path, mode="NCHW")
     writer = tf.summary.FileWriter(args.log_dir, model.sess.graph)
-    total_batches = len(train_indices) // args.batch_size
 
     lock = mp.Lock()
 
@@ -182,9 +178,9 @@ def run_training(cmd_line_args=None):
         dataset["states"],
         dataset["actions"],
         dataset["results"],
-        train_indices,
+        0, n_train_data,
         args.batch_size,
-        lock=lock,
+        lock,
         flip=True,
         chunk_size=args.chunk_size,
         chunk_buffer=args.chunk_buffer,
@@ -193,17 +189,17 @@ def run_training(cmd_line_args=None):
         dataset["states"],
         dataset["actions"],
         dataset["results"],
-        val_indices,
+        0, n_train_data,
         args.batch_size,
-        lock=lock,
+        lock,
     )
     eval_data_generator = shuffled_hdf5_batch_generator(
         dataset["states"],
         dataset["actions"],
         dataset["results"],
-        eval_indices,
+        n_train_data, n_total_data,
         args.batch_size,
-        lock=lock,
+        lock,
     )
 
     def fetch(it, q):
