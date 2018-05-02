@@ -72,11 +72,11 @@ class Selfplay:
     def run(self):
         printlog('start')
 
-        thrd.Thread(target=self.listen_update, name='selfplay_listener', daemon=True).start()
+        thrd.Thread(target=self.model_update_handler, name='selfplay_model_update_hndl', daemon=True).start()
         if self.ext_config.get('remote'):
-            thrd.Thread(target=self.remote_listen_update, name='selfplay_remote_update', daemon=True).start()
+            thrd.Thread(target=self.remote_update_handler, name='selfplay_remote_update_hndl', daemon=True).start()
         else:
-            thrd.Thread(target=self.remote_rcv, name="selfplay_remote_rcv", daemon=True).start()
+            thrd.Thread(target=self.rcv_remote_data_handler, name="selfplay_rcv_remote_hndl", daemon=True).start()
 
         cnt = 0
         while True:
@@ -85,7 +85,7 @@ class Selfplay:
                        name=self.game_config['name'] + '_selfplay_game_' + str(cnt)).start()
             cnt += 1
 
-    def listen_update(self):
+    def model_update_handler(self):
         printlog_thrd('listening')
         while True:
             path = self.r_conn.recv()
@@ -95,7 +95,7 @@ class Selfplay:
                 remote_q.put('./' + self.game_config['name'] + '_model/ckpt-' + str(path))
             self.nn_eval.load('./' + self.game_config['name'] + '_model/ckpt-' + str(path))
 
-    def remote_rcv(self):
+    def rcv_remote_data_handler(self):
         server_socket = socket.socket()
         server_socket.bind(('', self.remote_port))
 
@@ -115,7 +115,7 @@ class Selfplay:
             self.data_queue.put(final_image)
             self.remote_worker_reg[client_address[0]] = True
 
-    def remote_listen_update(self):
+    def remote_update_handler(self):
         server_socket = socket.socket()
         server_socket.bind(('', self.remote_update_port))
 

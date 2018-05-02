@@ -41,7 +41,7 @@ class RWLock:
         self.w_pending.release()
 
 
-class Reception:
+class ServerClientConn:
     def __init__(self, conn_num):
         self.queue = mp.Queue(conn_num)
         self.conn_num = conn_num
@@ -64,7 +64,7 @@ class Reception:
         return r, s_conn
 
 
-class Reception_Thrd:
+class ServerClientConnThrd:
     def __init__(self, conn_num):
         self.queue = queue.Queue(conn_num)
         self.conn_num = conn_num

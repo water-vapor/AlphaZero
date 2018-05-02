@@ -45,7 +45,7 @@ class Optimizer:
         self.proc = mp.Process(target=self.run, name='optimizer')
 
         self.game_config = game_config
-        self.writer = None
+        self.tensorboard_writer = None
 
     def __enter__(self):
         self.proc.start()
@@ -64,7 +64,7 @@ class Optimizer:
             self.net.load(self.load_path)
             start_step = self.net.get_global_step()
 
-        self.writer = tf.summary.FileWriter(self.log_dir)
+        self.tensorboard_writer = tf.summary.FileWriter(self.log_dir)
         loss_placeholder = tf.placeholder(tf.float32)
         loss_writer = tf.summary.scalar('train/loss', loss_placeholder)
 
@@ -84,7 +84,7 @@ class Optimizer:
             if step % self.num_log == 0:
                 printlog('update iter', step, loss)
                 summ = self.net.sess.run(loss_writer, feed_dict={loss_placeholder: loss})
-                self.writer.add_summary(summ, step)
+                self.tensorboard_writer.add_summary(summ, step)
             if self.eval_data_path is not None and step % self.num_eval == 0:
                 self.eval_model(dataset, step, self.net, val_indices, self.eval_batch_size, self.log_dir)
             if (step + 1) % self.num_ckpt == 0:
@@ -103,11 +103,11 @@ class Optimizer:
         val_loss, val_accuracy, val_mse, val_sum = evaluate(
             model, val_data_generator, tag="val")
         for summ in val_sum:
-            self.writer.add_summary(summ, global_step)
-        self.writer.flush()
+            self.tensorboard_writer.add_summary(summ, global_step)
+        self.tensorboard_writer.flush()
 
 
-class Datapool:
+class DataPool:
     def __init__(self, ext_config):
         self.data_pool = None
 
@@ -115,14 +115,14 @@ class Datapool:
         self.training_started = False
 
         self.pool_capacity = ext_config['pool_size']
-        self.pool_end_ind = 0
+        self.pool_end_index = 0
         self.is_full = False
         self.start_data_size = ext_config['start_data_size']
         self.store_path = ext_config.get('store_path')
         self.load_prev = ext_config.get('load_prev')
 
         conn_num = ext_config['conn_num']
-        self.rcpt = Reception(conn_num)
+        self.server_client_conn = ServerClientConn(conn_num)
 
         self.server = mp.Process(target=self.serve, name='data_pool_server')
 
@@ -147,7 +147,7 @@ class Datapool:
                     self.merge_data((loaded['arr_0'], loaded['arr_1'], loaded['arr_2']))
                     count += 1
         while True:
-            (value, req_type), s_conn = self.rcpt.get()
+            (value, req_type), s_conn = self.server_client_conn.get()
             if req_type == 'put':
                 # printlog('get packet')
                 data = value
@@ -160,7 +160,7 @@ class Datapool:
                 # printlog('sample data')
                 batch_size = value
                 if not self.is_full:
-                    idxs = np.random.choice(range(self.pool_end_ind), batch_size)
+                    idxs = np.random.choice(range(self.pool_end_index), batch_size)
                 else:
                     idxs = np.random.choice(range(self.pool_capacity), batch_size)
                 data = (self.data_pool[0][idxs], self.data_pool[1][idxs], self.data_pool[2][idxs])
@@ -175,28 +175,28 @@ class Datapool:
                 shape[0] = self.pool_capacity
                 self.data_pool.append(np.zeros(shape))
         printlog('add data to pool')
-        if not self.pool_end_ind + data[0].shape[0] > self.pool_capacity:
+        if not self.pool_end_index + data[0].shape[0] > self.pool_capacity:
             for i, item in enumerate(data):
-                self.data_pool[i][self.pool_end_ind:self.pool_end_ind + item.shape[0]] = item
-            self.pool_end_ind = self.pool_end_ind + data[0].shape[0]
+                self.data_pool[i][self.pool_end_index:self.pool_end_index + item.shape[0]] = item
+            self.pool_end_index = self.pool_end_index + data[0].shape[0]
         else:
             self.is_full = True
             for i, item in enumerate(data):
-                self.data_pool[i][self.pool_end_ind:self.pool_capacity] = item[:self.pool_capacity-self.pool_end_ind]
-                self.data_pool[i][:item.shape[0]-self.pool_capacity+self.pool_end_ind] = item[self.pool_capacity-self.pool_end_ind:]
-            self.pool_end_ind = data[0].shape[0]-self.pool_capacity+self.pool_end_ind
+                self.data_pool[i][self.pool_end_index:self.pool_capacity] = item[:self.pool_capacity - self.pool_end_index]
+                self.data_pool[i][:item.shape[0]-self.pool_capacity+self.pool_end_index] = item[self.pool_capacity - self.pool_end_index:]
+            self.pool_end_index = data[0].shape[0] - self.pool_capacity + self.pool_end_index
         if self.is_full:
             printlog('delete old data')
             printlog('data size: {}'.format(self.pool_capacity))
         else:
-            printlog('data size: {}'.format(self.pool_end_ind))
-        if (not self.training_started) and (self.is_full or self.pool_end_ind > self.start_data_size):
+            printlog('data size: {}'.format(self.pool_end_index))
+        if (not self.training_started) and (self.is_full or self.pool_end_index > self.start_data_size):
             self.start_training.release()
             self.training_started = True
 
     def put(self, data):
-        self.rcpt.req((data, 'put'))
+        self.server_client_conn.req((data, 'put'))
 
     def get(self, batch_size):
-        data = self.rcpt.req((batch_size, 'get'))
+        data = self.server_client_conn.req((batch_size, 'get'))
         return data

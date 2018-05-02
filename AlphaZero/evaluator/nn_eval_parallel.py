@@ -58,23 +58,23 @@ class NNEvaluator:
         self.load_path = ext_config.get('load_path')
         self.num_gpu = ext_config['num_gpu']
         atexit.register(kill_children)  # kill all the children when the program exit
-        self.listen_proc = mp.Process(target=self.listen, name=self.job + '_nn_eval')
+        self.listener = mp.Process(target=self.listen, name=self.job + '_nn_eval')
 
         self.rwlock = RWLock()
 
-        self.rcpt = Reception(self.max_batch_size * 2)
-        self.sl_rcpt = Reception(5)
+        self.server_client_conn = ServerClientConn(self.max_batch_size * 2)
+        self.save_load_conn = ServerClientConn(5)
 
     def __enter__(self):
         """Will be called where the "with" statement begin"""
         printlog('nn_eval: start listening')
-        self.listen_proc.start()
+        self.listener.start()
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Will be called where the "with" statement end"""
         printlog('nn_eval: terminate listener')
-        self.listen_proc.terminate()
+        self.listener.terminate()
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def eval(self, state):
@@ -84,7 +84,7 @@ class NNEvaluator:
         :return: (policy, value) pair
         """
         state_np = _state_tensor_converter.state_to_tensor(state)
-        result_np = self.rcpt.req(state_np)
+        result_np = self.server_client_conn.req(state_np)
         # This game specific conversation is implemented in state converter
         result = (_tensor_action_converter.tensor_to_action(result_np[0]), result_np[1])
         # for i in range(361):
@@ -95,7 +95,7 @@ class NNEvaluator:
     def sl_listen(self):
         printlog_thrd('start')
         while True:
-            (req_type, filename), s_conn = self.sl_rcpt.get()
+            (req_type, filename), s_conn = self.save_load_conn.get()
             if req_type == 'load':
                 printlog_thrd('load')
                 self.rwlock.w_acquire()
@@ -109,10 +109,10 @@ class NNEvaluator:
                 s_conn.send('done')
 
     def load(self, filename):
-        self.sl_rcpt.req(('load', filename))
+        self.save_load_conn.req(('load', filename))
 
     def save(self, filename):
-        self.sl_rcpt.req(('save', filename))
+        self.save_load_conn.req(('save', filename))
 
     def listen(self):
         """
@@ -126,7 +126,7 @@ class NNEvaluator:
             printlog('load model')
             self.net.load(self.load_path)
 
-        thrd.Thread(target=self.sl_listen, name='sl_listener', daemon=True).start()
+        thrd.Thread(target=self.sl_listen, name='save_load_listener', daemon=True).start()
 
         printlog('loop begin')
         while True:
@@ -134,7 +134,7 @@ class NNEvaluator:
                 reqs = []
                 for i in range(self.max_batch_size):
                     block = i < self.num_gpu
-                    reqs.append(self.rcpt.get(block))
+                    reqs.append(self.server_client_conn.get(block))
             except EmptyExc:
                 pass
             finally:

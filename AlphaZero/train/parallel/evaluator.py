@@ -97,8 +97,8 @@ class Evaluator:
                 mp.Process(target=self.eval_wrapper, args=(c,), name='eval_game_' + str(i)).start()
             # wait
             self.join_worker.acquire()
-            printlog('win rate', self.win_counter.value / self.num_not_tie.value)
-            if self.win_counter.value >= int(0.55 * self.num_not_tie.value):
+            printlog('win rate', self.win_counter.value / (self.num_not_tie.value + 1e-9))
+            if self.win_counter.value > int(0.55 * self.num_not_tie.value):
                 # save model
                 # self.nn_eval_chal.save('./model/best_name')
                 # send path
