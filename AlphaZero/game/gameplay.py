@@ -21,6 +21,7 @@ class Game:
         self.winner = None
         self.state_history = []
         self.probs_history = []
+        self.acts_history = []
         self._w = game_config['board_width']
         self._h = game_config['board_height']
         self._f = game_config['history_step'] * game_config['planes_per_step'] + game_config['additional_planes']
@@ -47,6 +48,7 @@ class Game:
                     self.state.turns <= self.dirichlet_before))
             self.state_history.append(self.state.copy())
             self.probs_history.append(probs)
+            self.acts_history.append(move)
             self.state.do_move(move)
             self.player_1.ack(move)
             self.player_2.ack(move)

@@ -121,7 +121,7 @@ class NNEvaluator:
         """
         printlog('create network')
         self.net = network.Network(game_config, num_gpu=self.num_gpu,
-                                   cluster=self.cluster, job=self.job)
+                                   cluster=self.cluster, job=self.job, mode='NCHW')
         if self.load_path is not None:
             printlog('load model')
             self.net.load(self.load_path)

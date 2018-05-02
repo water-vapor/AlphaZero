@@ -57,7 +57,7 @@ class Optimizer:
 
     def run(self):
         self.net = network.Network(self.game_config, self.num_gpu,
-                                   cluster=self.cluster, job=self.job)
+                                   cluster=self.cluster, job=self.job, mode='NCHW')
 
         start_step = 0
         if self.load_path is not None:
@@ -114,7 +114,9 @@ class Datapool:
         self.start_training = mp.Semaphore(0)
         self.training_started = False
 
-        self.pool_size = ext_config['pool_size']
+        self.pool_capacity = ext_config['pool_size']
+        self.pool_end_ind = 0
+        self.is_full = False
         self.start_data_size = ext_config['start_data_size']
         self.store_path = ext_config.get('store_path')
         self.load_prev = ext_config.get('load_prev')
@@ -157,22 +159,38 @@ class Datapool:
             elif req_type == 'get':
                 # printlog('sample data')
                 batch_size = value
-                idxs = np.random.choice(range(self.data_pool[0].shape[0]), batch_size)
+                if not self.is_full:
+                    idxs = np.random.choice(range(self.pool_end_ind), batch_size)
+                else:
+                    idxs = np.random.choice(range(self.pool_capacity), batch_size)
                 data = (self.data_pool[0][idxs], self.data_pool[1][idxs], self.data_pool[2][idxs])
                 s_conn.send(data)
 
     def merge_data(self, data):
         if self.data_pool is None:
             printlog('init pool')
-            self.data_pool = [item for item in data]
+            self.data_pool = []
+            for i, item in enumerate(data):
+                shape = [*item.shape]
+                shape[0] = self.pool_capacity
+                self.data_pool.append(np.zeros(shape))
+        printlog('add data to pool')
+        if not self.pool_end_ind + data[0].shape[0] > self.pool_capacity:
+            for i, item in enumerate(data):
+                self.data_pool[i][self.pool_end_ind:self.pool_end_ind + item.shape[0]] = item
+            self.pool_end_ind = self.pool_end_ind + data[0].shape[0]
         else:
-            printlog('add data to pool')
-            self.data_pool = [np.concatenate([it, it_new], axis=0) for it, it_new in zip(self.data_pool, data)]
-            if self.data_pool[0].shape[0] > self.pool_size:
-                printlog('delete old data')
-                self.data_pool = [it[-self.pool_size:] for it in self.data_pool]
-        printlog('data size: ' + str(self.data_pool[0].shape[0]))
-        if (not self.training_started) and self.data_pool[0].shape[0] > self.start_data_size:
+            self.is_full = True
+            for i, item in enumerate(data):
+                self.data_pool[i][self.pool_end_ind:self.pool_capacity] = item[:self.pool_capacity-self.pool_end_ind]
+                self.data_pool[i][:item.shape[0]-self.pool_capacity+self.pool_end_ind] = item[self.pool_capacity-self.pool_end_ind:]
+            self.pool_end_ind = data[0].shape[0]-self.pool_capacity+self.pool_end_ind
+        if self.is_full:
+            printlog('delete old data')
+            printlog('data size: {}'.format(self.pool_capacity))
+        else:
+            printlog('data size: {}'.format(self.pool_end_ind))
+        if (not self.training_started) and (self.is_full or self.pool_end_ind > self.start_data_size):
             self.start_training.release()
             self.training_started = True
 
