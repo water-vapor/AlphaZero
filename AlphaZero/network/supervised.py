@@ -13,11 +13,11 @@ from AlphaZero.network.main import Network
 
 maxsize = 200
 num_process = 1
-go_config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
+go_config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'go.yaml')
 with open(go_config_path) as c:
     game_config = yaml.load(c)
 
-supervised_config_path = os.path.join("AlphaZero", "config", "supervised.yaml")
+supervised_config_path = os.path.join(os.path.dirname(__file__), '..', "config", "supervised.yaml")
 np.set_printoptions(threshold=np.nan)
 
 

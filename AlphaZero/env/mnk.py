@@ -2,13 +2,14 @@ from copy import deepcopy
 
 import numpy as np
 import yaml
+import os
 
 WHITE = -1
 BLACK = +1
 PASS_MOVE = None
 EMPTY = 0
 
-with open('AlphaZero/config/mnk.yaml') as f:
+with open(os.path.join(os.path.dirname(__file__), '..', 'config', 'mnk.yaml')) as f:
     game_config = yaml.load(f)
 
 

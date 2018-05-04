@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 *.so
 .idea/
+.cache
 
 #ignore data
 data/
@@ -15,6 +16,7 @@ tests/test_data/sgf/*
 !tests/test_data/sgf/G2.sgf
 !tests/test_data/sgf/G3.sgf
 
-
+#ignore doc builds
+docs/_build
 
 *.hdf5

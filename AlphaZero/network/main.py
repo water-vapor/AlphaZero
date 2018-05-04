@@ -9,7 +9,7 @@ from AlphaZero.network.util import average_gradients, batch_split
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 
-reinforce_config = os.path.join("AlphaZero", "config", "reinforce.yaml")
+reinforce_config = os.path.join(os.path.dirname(__file__), '..', "config", "reinforce.yaml")
 
 
 class Network(object):

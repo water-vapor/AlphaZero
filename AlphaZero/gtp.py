@@ -1,3 +1,4 @@
+import os
 import yaml
 import AlphaZero.network.main as network
 import AlphaZero.interface.gtp_wrapper as gtp_wrapper
@@ -14,9 +15,9 @@ parser.add_argument('-p', type=str, help='Port for distributed tensorflow.', def
 parser.add_argument('-n', type=int, help='Max playout.', default=None)
 args = parser.parse_args()
 
-with open('AlphaZero/config/go.yaml') as c:
+with open(os.path.join(os.path.dirname(__file__), 'config', 'go.yaml')) as c:
     game_config = yaml.load(c)
-with open('AlphaZero/config/gtp.yaml') as f:
+with open(os.path.join(os.path.dirname(__file__), 'config', 'gtp.yaml')) as f:
     ext_config = yaml.load(f)
 _state_tensor_converter = _preproc.StateTensorConverter(game_config)
 _tensor_action_converter = _preproc.TensorActionConverter(game_config)

@@ -12,7 +12,7 @@ import AlphaZero.env.go as go
 from AlphaZero.processing.state_converter import StateTensorConverter
 from AlphaZero.util import sgf_iter_states
 
-config_path = os.path.join('AlphaZero', 'config', 'go.yaml')
+config_path = os.path.join(os.path.dirname(__file__), '..', '..', 'config', 'go.yaml')
 with open(config_path) as c:
     config = yaml.load(c)
 

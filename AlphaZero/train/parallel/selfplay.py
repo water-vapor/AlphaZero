@@ -13,9 +13,9 @@ import tensorflow as tf
 from AlphaZero.train.parallel.util import *
 import AlphaZero.evaluator.nn_eval_parallel as nn_eval
 
-with open('AlphaZero/config/game.yaml') as f:
+with open(os.path.join(os.path.dirname(__file__), '..', '..', 'config', 'game.yaml')) as f:
     game_selection = yaml.load(f)['game']
-with open('AlphaZero/config/' + game_selection + '.yaml') as c:
+with open(os.path.join(os.path.dirname(__file__), '..', '..', 'config', game_selection + '.yaml')) as c:
     game_config = yaml.load(c)
 _gameplay = importlib.import_module(game_config['gameplay_path'])
 

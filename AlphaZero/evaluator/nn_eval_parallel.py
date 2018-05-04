@@ -1,3 +1,4 @@
+import os
 import atexit
 import importlib
 import traceback as tb
@@ -12,9 +13,9 @@ import AlphaZero.network.main as network
 # import AlphaZero.env.go as go
 from AlphaZero.train.parallel.util import *
 
-with open('AlphaZero/config/game.yaml') as f:
+with open(os.path.join(os.path.dirname(__file__), '..', 'config', 'game.yaml')) as f:
     game_selection = yaml.load(f)['game']
-with open('AlphaZero/config/' + game_selection + '.yaml') as c:
+with open(os.path.join(os.path.dirname(__file__), '..', 'config', game_selection + '.yaml')) as c:
     game_config = yaml.load(c)
 _preproc = importlib.import_module(game_config['state_converter_path'])
 _state_tensor_converter = _preproc.StateTensorConverter(game_config)

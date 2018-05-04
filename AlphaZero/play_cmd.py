@@ -9,9 +9,9 @@ from AlphaZero.evaluator.nn_eval_parallel import NNEvaluator
 from AlphaZero.evaluator.dummy_eval import DummyEvaluator
 import tensorflow as tf
 
-with open('AlphaZero/config/play_cmd.yaml') as f:
+with open(os.path.join(os.path.dirname(__file__), 'config', 'play_cmd.yaml')) as f:
     config = yaml.load(f)
-with open('AlphaZero/config/game.yaml') as f:
+with open(os.path.join(os.path.dirname(__file__), 'config', 'game.yaml')) as f:
     game_selection = yaml.load(f)
 config_path = os.path.join('AlphaZero', 'config', game_selection['game'] + '.yaml')
 if not os.path.exists(config_path):

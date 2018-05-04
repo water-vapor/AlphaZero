@@ -1,11 +1,12 @@
+import os
 import yaml
 import importlib
 import numpy as np
 import AlphaZero.network.main as network
 
-with open('AlphaZero/config/game.yaml') as f:
+with open(os.path.join(os.path.dirname(__file__), '..', 'config', 'game.yaml')) as f:
     game_selection = yaml.load(f)['game']
-with open('AlphaZero/config/' + game_selection + '.yaml') as c:
+with open(os.path.join(os.path.dirname(__file__), '..', 'config', game_selection + '.yaml')) as c:
     game_config = yaml.load(c)
 
 _preproc = importlib.import_module(game_config['state_converter_path'])
