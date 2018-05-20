@@ -26,6 +26,16 @@ def kill_children():
 
 
 class Selfplay:
+    """
+    This class generates training data from self play games.
+
+    Args:
+        nn_eval: NNEvaluator instance storing the best model so far
+        r_conn: Pipe to receive the model updating message
+        data_queue: Queue to put the data
+        game_config: A dictionary of game environment configuration
+        ext_config: A dictionary of system configuration
+    """
     def __init__(self, nn_eval, r_conn, data_queue, game_config, ext_config):
         printlog('create selfplay')
 

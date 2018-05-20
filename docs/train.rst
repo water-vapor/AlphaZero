@@ -15,4 +15,5 @@ Reinforcement Learning
 .. automodule:: AlphaZero.train.parallel.selfplay
   :members:
 
-
+.. automodule:: AlphaZero.train.parallel.datapool
+  :members:

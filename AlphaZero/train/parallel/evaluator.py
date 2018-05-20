@@ -24,7 +24,17 @@ def kill_children():
 
 
 class Evaluator:
+    """
+    This class compares the performance of the up-to-date model and the best model so far.
 
+    Args:
+        nn_eval_chal: NNEvaluator instance storing the up-to-date model
+        nn_eval_best: NNEvaluator instance storing the bast model so far
+        r_conn: Pipe to receive the message from optimizer
+        s_conn: Pipe to send the model updating message to the self play module
+        game_config: A dictionary of game environment configuration
+        ext_config: A dictionary of system configuration
+    """
     def __init__(self, nn_eval_chal, nn_eval_best, r_conn, s_conn, game_config, ext_config):
         printlog('create evaluator')
 

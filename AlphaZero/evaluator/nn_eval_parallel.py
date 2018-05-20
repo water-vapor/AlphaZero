@@ -42,16 +42,20 @@ class NNEvaluator:
     Provide neural network evaluation services for model evaluator and data generator. Instances should be created by
     the main evaluator/generator thread. Context manager (with statement) is preferred because of the automatic start
     and termination of the listening thread.
-    e.g.
+
+    Example:
+
         with NNEvaluator(...) as eval:
             pass
+
+    Args:
+        cluster: Tensorflow cluster spec
+        game_config: A dictionary of game environment configuration
+        ext_config: A dictionary of system configuration
     """
 
     def __init__(self, cluster, game_config, ext_config):  # TODO: use proper default value
-        """
-        :param net: network class. This class doesn't create network.
-        :param max_batch_size: Int
-        """
+
         printlog('create nn_eval')
         self.cluster = cluster
         self.job = ext_config['job']
@@ -81,8 +85,10 @@ class NNEvaluator:
     def eval(self, state):
         """
         This function is called by mcts threads. There will be multiple function calls
-        :param state: GameState
-        :return: (policy, value) pair
+        Args:
+            state: GameState
+        Returns:
+            Tuple: (policy, value) pair
         """
         state_np = _state_tensor_converter.state_to_tensor(state)
         result_np = self.server_client_conn.req(state_np)

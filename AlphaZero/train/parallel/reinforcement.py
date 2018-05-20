@@ -1,3 +1,20 @@
+"""
+This is the main program of the trainer. This program launches the three submodules described in the paper.
+
+This program uses configuration files instead of command line arguments. You will need to modify the following
+files.
+
+- `game.yaml`: type of game.
+- `<type_of_game>.yaml`: options of game environment and the modules to be imported.
+- `reinforce.yaml`: learning parameters
+- `rl_sys_config.yaml`: the system settings of the trainer. The detailed explanation of each item is in Github Wiki.
+
+Example:
+    When at the root directory of this repo, execute the following command.
+
+        $ python AlphaZero.train.parallel.reinforcement
+"""
+
 import argparse
 import multiprocessing as mp
 import os
@@ -5,6 +22,7 @@ import time
 import tensorflow as tf
 import yaml
 import AlphaZero.evaluator.nn_eval_parallel as nn_eval
+import AlphaZero.train.parallel.datapool as datapool
 import AlphaZero.train.parallel.evaluator as evaluator
 import AlphaZero.train.parallel.optimization as optimization
 import AlphaZero.train.parallel.selfplay as selfplay
@@ -48,7 +66,7 @@ if __name__ == '__main__':
     printlog('create data pool')
     # dgen_opti_q = mp.Queue(8)
 
-    with optimization.DataPool(ext_config['datapool']) as selfplay_opti_q, \
+    with datapool.DataPool(ext_config['datapool']) as selfplay_opti_q, \
             nn_eval.NNEvaluator(cluster, game_config, ext_config['chal']) as nn_eval_chal, \
             nn_eval.NNEvaluator(cluster, game_config, ext_config['best']) as nn_eval_best, \
             optimization.Optimizer(cluster, opti_eval_s, selfplay_opti_q, game_config, ext_config['optimizer']) as opti, \
