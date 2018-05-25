@@ -25,7 +25,8 @@ def kill_children():
 
 class Evaluator:
     """
-    This class compares the performance of the up-to-date model and the best model so far.
+    This class compares the performance of the up-to-date model and the best model so far by holding games
+    between these two models.
 
     Args:
         nn_eval_chal: NNEvaluator instance storing the up-to-date model
@@ -67,6 +68,12 @@ class Evaluator:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def eval_wrapper(self, color_of_new):
+        """
+        Wrapper for a single game.
+
+        Args:
+            color_of_new: The color of the new model (challenger)
+        """
         self.nn_eval_chal.rwlock.r_acquire()
         self.nn_eval_best.rwlock.r_acquire()
 
@@ -91,6 +98,9 @@ class Evaluator:
         self.nn_eval_chal.rwlock.r_release()  # increment counter
 
     def run(self):
+        """
+        The main evaluation process. It will launch games asynchronously and examine the winning rate.
+        """
         printlog('loop begin')
         while True:
             new_model_path = self.r_conn.recv()

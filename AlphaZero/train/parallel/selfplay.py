@@ -29,6 +29,12 @@ class Selfplay:
     """
     This class generates training data from self play games.
 
+    Run only this file to start a remote self play session.
+
+    Example:
+
+        $ python -m AlphaZero.train.parallel.selfplay <master addr>
+
     Args:
         nn_eval: NNEvaluator instance storing the best model so far
         r_conn: Pipe to receive the model updating message
@@ -63,6 +69,9 @@ class Selfplay:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def selfplay_wrapper(self):
+        """
+        Wrapper for a single self play game.
+        """
         # process comm
         self.nn_eval.rwlock.r_acquire()
         # start game
@@ -80,6 +89,9 @@ class Selfplay:
         self.worker_lim.release()
 
     def run(self):
+        """
+        The main data generation process. It will keep launching self play games.
+        """
         printlog('start')
 
         thrd.Thread(target=self.model_update_handler, name='selfplay_model_update_hndl', daemon=True).start()
@@ -96,6 +108,10 @@ class Selfplay:
             cnt += 1
 
     def model_update_handler(self):
+        """
+        The handler for model updating. It will try to load new network parameters. If
+        it is the master session, it will also notify the remote sessions to update.
+        """
         printlog_thrd('listening')
         while True:
             path = self.r_conn.recv()
@@ -106,6 +122,9 @@ class Selfplay:
             self.nn_eval.load('./' + self.game_config['name'] + '_model/ckpt-' + str(path))
 
     def rcv_remote_data_handler(self):
+        """
+        The handler for receiving data from remote sessions. Only the master session uses this handler.
+        """
         server_socket = socket.socket()
         server_socket.bind(('', self.remote_port))
 
@@ -126,6 +145,10 @@ class Selfplay:
             self.remote_worker_reg[client_address[0]] = True
 
     def remote_update_handler(self):
+        """
+        The handler for receiving the update notification from the master session. Only the remote sessions
+        use this handler.
+        """
         server_socket = socket.socket()
         server_socket.bind(('', self.remote_update_port))
 

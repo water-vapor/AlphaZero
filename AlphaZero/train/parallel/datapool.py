@@ -41,6 +41,10 @@ class DataPool:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def serve(self):
+        """
+        The listening process. It will first load the saved data and then run a loop to handle
+        data getting and putting requests.
+        """
         printlog('start')
         count = 0
         if self.load_prev and self.store_path is not None:
@@ -73,6 +77,13 @@ class DataPool:
                 s_conn.send(data)
 
     def merge_data(self, data):
+        """
+        Put the new data into the array. Since the array is pre-allocated, this function will overwrite the
+        old data with the new ones and record the ending index.
+
+        Args:
+            data: New data from self play games
+        """
         if self.data_pool is None:
             printlog('init pool')
             self.data_pool = []
@@ -101,8 +112,23 @@ class DataPool:
             self.training_started = True
 
     def put(self, data):
+        """
+        Send the putting request. This function will be called by self play games.
+
+        Args:
+            data: New data
+        """
         self.server_client_conn.req((data, 'put'))
 
     def get(self, batch_size):
+        """
+        Send the getting request. This function will be called by the optimizer.
+
+        Args:
+            batch_size: The size of the minibatch
+
+        Returns:
+            Minibatch of training data
+        """
         data = self.server_client_conn.req((batch_size, 'get'))
         return data

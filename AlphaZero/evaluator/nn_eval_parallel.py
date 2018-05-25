@@ -22,16 +22,6 @@ _state_tensor_converter = _preproc.StateTensorConverter(game_config)
 _tensor_action_converter = _preproc.TensorActionConverter(game_config)
 
 
-class _EvalReq:
-    """
-    This class encapsulates game state to be evaluated and pipe
-    """
-
-    def __init__(self, state_np, conn):
-        self.state_np = state_np
-        self.conn = conn
-
-
 def kill_children():
     for p in mp.active_children():
         p.terminate()
@@ -84,9 +74,11 @@ class NNEvaluator:
 
     def eval(self, state):
         """
-        This function is called by mcts threads. There will be multiple function calls
+        This function is called by mcts threads.
+
         Args:
             state: GameState
+
         Returns:
             Tuple: (policy, value) pair
         """
@@ -100,6 +92,9 @@ class NNEvaluator:
         return result
 
     def sl_listen(self):
+        """
+        The listener for saving and loading the network parameters. This is run in new thread instead of process.
+        """
         printlog_thrd('start')
         while True:
             (req_type, filename), s_conn = self.save_load_conn.get()
@@ -116,15 +111,26 @@ class NNEvaluator:
                 s_conn.send('done')
 
     def load(self, filename):
+        """
+        Send the load request.
+
+        Args:
+            filename: the filename of the checkpoint
+        """
         self.save_load_conn.req(('load', filename))
 
     def save(self, filename):
+        """
+        Send the save request.
+
+        Args:
+            filename: the filename of the checkpoint
+        """
         self.save_load_conn.req(('save', filename))
 
     def listen(self):
         """
-        This function is run in another thread launched by main evaluator/generator thread. There will be only 2
-        listeners. They are NN to be evaluated and best NN so far.
+        The listener for collecting the computation requests and performing neural network evaluation.
         """
         printlog('create network')
         self.net = network.Network(game_config, num_gpu=self.num_gpu,

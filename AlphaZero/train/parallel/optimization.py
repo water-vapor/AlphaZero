@@ -62,6 +62,9 @@ class Optimizer:
         tb.print_exception(exc_type, exc_val, exc_tb)
 
     def run(self):
+        """
+        The main updating process.
+        """
         self.net = network.Network(self.game_config, self.num_gpu,
                                    cluster=self.cluster, job=self.job, mode='NCHW')
 
@@ -98,6 +101,18 @@ class Optimizer:
                 self.s_conn.send(step + 1)
 
     def eval_model(self, dataset, global_step, model, val_indices, minibatch, log_dir):
+        """
+        Evaluate the model and record the result with tensorboard. This evaluation is different from
+        the evaluation in the three main components of the RL training pipeline.
+
+        Args:
+            dataset: The dataset
+            global_step: Current global step
+            model: The model to be evaluate
+            val_indices: The indices of validation data
+            minibatch: Batch size for the evaluation
+            log_dir: Directory of tensorboard log file
+        """
 
         val_data_generator = shuffled_hdf5_batch_generator(
             dataset["states"],

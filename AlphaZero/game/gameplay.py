@@ -7,13 +7,15 @@ from AlphaZero.train.parallel.util import *
 
 
 class Game:
+    """
+    A single game of two players.
 
+    Args:
+        nn_eval_1: NNEvaluator instance. This class doesn't create evaluator.
+        nn_eval_2: NNEvaluator instance.
+    """
     def __init__(self, nn_eval_1, nn_eval_2, game_config, ext_config):
-        """
-        Set NN evaluator and game board.
-        :param nn_eval_1: NNEvaluator class. This class doesn't create evaluator.
-        :param nn_eval_2: NNEvaluator class.
-        """
+
         self.player_1 = player.Player(nn_eval_1, game_config, ext_config['player'])
         self.player_2 = player.Player(nn_eval_2, game_config, ext_config['player'])
         self._game_env = importlib.import_module(game_config['env_path'])
@@ -34,8 +36,11 @@ class Game:
         self.max_turn = ext_config['max_turn']
 
     def start(self):
-        """ Make the instance callable. Start playing.
-        Returns: Game winner. Definition is in go.py.
+        """
+        Make the instance callable. Start playing.
+
+        Returns:
+            Game winner. Definition is in go.py.
         """
         current_player = self.player_1
         while not (self.state.is_end_of_game
@@ -66,6 +71,12 @@ class Game:
         return self.winner
 
     def get_history(self):
+        """
+        Convert the format of game history for training.
+
+        Returns:
+            tuple of numpy arrays: game states, probability maps and game results
+        """
         # TODO: whether to put the whole game history in one batch
         state_np = np.zeros((len(self.state_history), self._f, self._h, self._w))
         probs_np = np.zeros((len(self.probs_history), self._o))

@@ -13,6 +13,15 @@ Example:
     When at the root directory of this repo, execute the following command.
 
         $ python AlphaZero.train.parallel.reinforcement
+
+The whole trainer consists of three main components. They are
+
+- Optimizer: updates the model with the self play data
+- Evaluator: compares the new model with the best model
+- data generator: holds self play games and generate training data
+
+These modules are encapsulated into classes. They will launch a separate process for the job.
+The launching will be automatically done by the Python context manager (with statement).
 """
 
 import argparse
