@@ -6,6 +6,8 @@ from AlphaZero.network.model import Model
 from AlphaZero.network.util import average_gradients, batch_split
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
+config = os.path.join(os.path.dirname(__file__), '..',
+                      "config", "reinforce.yaml")
 
 
 class Network(object):
@@ -22,7 +24,7 @@ class Network(object):
         cluster, job: for distributed training.
     """
 
-    def __init__(self, game_config, num_gpu=1, train_config=None, load_pretrained=False, data_format="NHWC",
+    def __init__(self, game_config, num_gpu=1, train_config=config, load_pretrained=False, data_format="NHWC",
                  cluster=tf.train.ClusterSpec({'main': ['localhost:3333']}), job='main'):
         with open(train_config, "r") as fh:
             self._train_config = yaml.load(fh)

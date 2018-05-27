@@ -27,8 +27,8 @@ pretrained = ext_config['pretrained'] if args.m is None else False
 playout = ext_config['max_playout'] if args.n is None else args.n
 
 cluster = tf.train.ClusterSpec({'main': ['localhost:'+str(port)]})
-net = network.Network(game_config, config_file='AlphaZero/config/gtp.yaml', pretrained=pretrained,
-                      mode='NCHW', cluster=cluster)
+net = network.Network(game_config, train_config='AlphaZero/config/gtp.yaml', load_pretrained=pretrained,
+                      data_format='NCHW', cluster=cluster)
 if args.m is not None:
     net.load(tf.train.latest_checkpoint(args.m))
 

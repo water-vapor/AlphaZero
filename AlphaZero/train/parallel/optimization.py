@@ -66,7 +66,7 @@ class Optimizer:
         The main updating process.
         """
         self.net = network.Network(self.game_config, self.num_gpu,
-                                   cluster=self.cluster, job=self.job, mode='NCHW')
+                                   cluster=self.cluster, job=self.job, data_format='NCHW')
 
         start_step = 0
         if self.load_path is not None:

@@ -52,7 +52,7 @@ def main():
         rl_info = {'models': [], 'selfplay': [], 'should_selfplay': True}
 
         # Create the first random model
-        random_model = Network(config_file="AlphaZero/network/reinforce.yaml")
+        random_model = Network(train_config="AlphaZero/network/reinforce.yaml")
         random_model_name = get_current_time()
         random_model.save(os.path.join(args.directory, 'models', random_model_name))
         # Since this is the only model, it is the best
