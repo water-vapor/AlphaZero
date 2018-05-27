@@ -2,32 +2,27 @@ import os
 import tensorflow as tf
 import yaml
 import numpy as np
-
 from AlphaZero.network.model import Model
 from AlphaZero.network.util import average_gradients, batch_split
 
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
-
-reinforce_config = os.path.join(os.path.dirname(__file__), '..', "config", "reinforce.yaml")
 
 
 class Network(object):
 
-    def __init__(self, game_config, num_gpu=1, config_file=reinforce_config, pretrained=False, mode="NHWC",
+    def __init__(self, game_config, num_gpu=1, train_config=None, load_pretrained=False, data_format="NHWC",
                  cluster=tf.train.ClusterSpec({'main': ['localhost:3333']}), job='main'):
-        with open(config_file) as fh:
-            self.config = yaml.load(fh)
-        self.num_gpu = num_gpu
+        with open(train_config, "r") as fh:
+            self._train_config = yaml.load(fh)
+        self._num_gpu = num_gpu
         self._game_config = game_config
-        self.mode = mode
+        self._data_format = data_format
+
         self.global_step = tf.get_variable("global_step", [], dtype=tf.int32,
                                            trainable=False, initializer=tf.constant_initializer(0))
-
-        learning_scheme = self.config["learning_rate"]
+        learning_scheme = self._train_config["learning_rate"]
         boundaries = sorted([int(value) for value in learning_scheme.keys()])
         values = [float(learning_scheme[value]) for value in boundaries]
-
         sess_config = tf.ConfigProto(allow_soft_placement=True)
         sess_config.gpu_options.allow_growth = True
         sess_config.graph_options.optimizer_options.global_jit_level = tf.OptimizerOptions.ON_1
@@ -36,59 +31,46 @@ class Network(object):
         self.sess = tf.Session(target=server.target)
 
         with tf.device('/job:' + job + '/task:0'):
-
             self.models = []
-
             self.lr = tf.train.piecewise_constant(
                 self.global_step, boundaries[1:], values)
             self.opt = tf.train.MomentumOptimizer(
-                self.lr, momentum=self.config["momentum"])
-
+                self.lr, momentum=self._train_config["momentum"])
             loss_list = []
             grad_list = []
             p_list = []
             v_list = []
-
-            for idx in range(self.num_gpu):
+            for idx in range(self._num_gpu):
                 reuse = bool(idx != 0)
                 with tf.variable_scope("model", reuse=reuse):
                     with tf.name_scope("model_{}".format(idx)) as name_scope, tf.device(
                             tf.train.replica_device_setter(worker_device="/gpu:{}".format(idx), ps_device='/cpu:0', ps_tasks=1)):
                         model = Model(
-                            self.config, name_scope, self._game_config, mode=self.mode, reuse=reuse)
+                            self._game_config, self._train_config, data_format=self._data_format)
                         loss = model.get_loss()
                         grad = self.opt.compute_gradients(
                             loss, colocate_gradients_with_ops=True)
-                        grad = [(tf.expand_dims(g, 0), var)
-                                for g, var in grad]
-
                         self.models.append(model)
                         if idx == 0:
                             update_ops = tf.get_collection(
                                 tf.GraphKeys.UPDATE_OPS, name_scope)
-
                 loss_list.append(loss)
                 grad_list.append(grad)
                 p_list.append(model.R_p)
                 v_list.append(model.R_v)
-
             self.loss = tf.add_n(loss_list) / len(loss_list)
             self.grad = average_gradients(grad_list)
-
             train_op = [self.opt.apply_gradients(
                 self.grad, global_step=self.global_step)]
             train_op.extend(update_ops)
             self.train_op = tf.group(*train_op)
-
             self.R_p = tf.concat(p_list, axis=0)
             self.R_v = tf.concat(v_list, axis=0)
             self.saver = tf.train.Saver(max_to_keep=20)
-
-            if pretrained:
+            self.sess.run(tf.global_variables_initializer())
+            if load_pretrained:
                 self.saver.restore(
-                    self.sess, tf.train.latest_checkpoint(self.config['save_dir']))
-            else:
-                self.sess.run(tf.global_variables_initializer())
+                    self.sess, tf.train.latest_checkpoint(self._train_config['save_dir']))
 
     def update(self, data):
         '''
@@ -103,7 +85,7 @@ class Network(object):
         '''
 
         feed_dict = {}
-        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
+        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self._num_gpu, *data))):
             feed_dict[model.x] = batch[0]
             feed_dict[model.p] = batch[1]
             feed_dict[model.v] = batch[2]
@@ -123,7 +105,7 @@ class Network(object):
                 R_v: expected value of current state, numpy array of shape [None]
         '''
         feed_dict = {}
-        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
+        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self._num_gpu, *data))):
             feed_dict[model.x] = batch[0]
             feed_dict[model.is_train] = False
         R_p, R_v = self.sess.run([self.R_p, self.R_v], feed_dict=feed_dict)
@@ -144,7 +126,7 @@ class Network(object):
         '''
         feed_dict = {}
         state, action, result = data
-        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self.num_gpu, *data))):
+        for idx, (model, batch) in enumerate(zip(self.models, batch_split(self._num_gpu, *data))):
             feed_dict[model.x] = batch[0]
             feed_dict[model.p] = batch[1]
             feed_dict[model.v] = batch[2]

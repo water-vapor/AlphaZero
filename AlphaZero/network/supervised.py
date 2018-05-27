@@ -5,79 +5,40 @@ import h5py as h5
 import numpy as np
 import tensorflow as tf
 import yaml
-import multiprocessing as mp
 from itertools import chain
 from tqdm import tqdm
 
 from AlphaZero.network.main import Network
 
-maxsize = 200
-num_process = 1
-go_config_path = os.path.join(os.path.dirname(__file__), '..', 'config', 'go.yaml')
+go_config_path = os.path.join(os.path.dirname(
+    __file__), '..', 'config', 'go.yaml')
 with open(go_config_path) as c:
     game_config = yaml.load(c)
 
-supervised_config_path = os.path.join(os.path.dirname(__file__), '..', "config", "supervised.yaml")
+supervised_config_path = os.path.join(os.path.dirname(
+    __file__), '..', "config", "supervised.yaml")
 np.set_printoptions(threshold=np.nan)
 
 
-class shuffled_hdf5_batch_generator:
+def shuffled_hdf5_batch_generator(state_dataset, action_dataset, result_dataset, start_idx, end_idx, batch_size, flip=False):
+    state_size = state_dataset.shape[1:]
+    game_size = state_size[-1]
+    state_dataset = state_dataset[start_idx: end_idx]
+    action_dataset = action_dataset[start_idx: end_idx]
+    result_dataset = result_dataset[start_idx: end_idx]
 
-    def __init__(self, state_dataset, action_dataset, result_dataset, start_idx, end_idx, batch_size, lock, flip=False, chunk_size=None, chunk_buffer=None):
+    while True:
+        indices = list(range(end_idx - start_idx))
+        random.shuffle(indices)
+        states = [state_dataset[i] for i in indices]
+        actions = [action_dataset[i] for i in indices]
+        results = [result_dataset[i] for i in indices]
 
-        self.state_dataset = state_dataset
-        self.action_dataset = action_dataset
-        self.result_dataset = result_dataset
-        self.start_idx = start_idx
-        self.end_idx = end_idx
-        self.batch_size = batch_size
-        self.flip = flip
-        self.lock = lock
-        self.chunk_size = 1 if chunk_size is None else chunk_size
-        self.chunk_buffer = 1 if chunk_buffer is None else chunk_buffer
-
-        self.state_size = state_dataset.shape[1:]
-        self.game_size = self.state_size[-1]
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        states = []
-        actions = []
-        results = []
-        with self.lock:
-            for _ in range(self.batch_size // self.chunk_size):
-                start = np.random.randint(
-                    self.start_idx, self.end_idx - self.chunk_buffer + 1)
-                end = start + self.chunk_buffer
-                indices = np.random.choice(
-                    list(range(end - start)), size=self.chunk_size)
-                states.append(np.asarray(
-                    self.state_dataset[start: end][indices]))
-                actions.append(np.asarray(
-                    self.action_dataset[start: end][indices]))
-                results.append(np.asarray(
-                    self.result_dataset[start: end][indices]))
-        states = np.concatenate(states)
-        actions = np.concatenate(actions)
-        results = np.concatenate(results)
-        return self.transform(states, actions, results)
-
-    def transform(self, states, actions, results):
-        game_size = self.game_size
-        state_size = self.state_size
-        flip = self.flip
-        batch = self.batch_size
-
-        X = np.zeros([batch] + list(state_size), dtype=np.float32)
-        Y = np.zeros([batch, game_size * game_size + 1], dtype=np.float32)
-        Z = np.zeros([batch], dtype=np.float32)
-
-        for i in range(batch):
-            state = states[i]
-            h, w = actions[i][0], actions[i][1]
-            result = results[i][0]
+        X, Y, Z, i = [], [], [], 0
+        for state, action, result in zip(states, actions, results):
+            tmp = np.zeros([game_size * game_size + 1], dtype=np.float32)
+            h, w = action[0], action[1]
+            result = result[0]
             if flip:
                 if h != game_size or w != 0:
                     flip_h = random.choice([True, False])
@@ -88,11 +49,16 @@ class shuffled_hdf5_batch_generator:
                     if flip_w:
                         state = np.flip(state, axis=2)
                         w = game_size - 1 - w
+            tmp[int(game_size * h + w)] = 1
 
-            X[i] = state
-            Y[i, int(game_size * h + w)] = 1
-            Z[i] = result
-        return X, Y, Z
+            X.append(state)
+            Y.append(tmp)
+            Z.append(result)
+            i += 1
+
+            if i >= batch_size:
+                yield np.array(X, dtype=np.float32), np.array(Y, dtype=np.float32), np.array(Z, dtype=np.float32)
+                X, Y, Z, i = [], [], [], 0
 
 
 def evaluate(network, data_generator, max_batch, tag="train"):
@@ -120,21 +86,14 @@ def evaluate(network, data_generator, max_batch, tag="train"):
     return loss, accuracy, mse, summary
 
 
-def run_training(cmd_line_args=None):
-    """Run training. command-line args may be passed in as a list
-    """
-    parser = argparse.ArgumentParser(
-        description='Perform supervised training on a policy network.')
+def run_training():
+    parser = argparse.ArgumentParser()
     parser.add_argument("--train_data",
                         help="A .h5 file of training data", type=str)
     parser.add_argument("--num_gpu",
                         help="Number of GPU. Default: 4", type=int, default=4)
     parser.add_argument("--batch_size",
                         help="Size of minibatches. Default: 512", type=int, default=512)
-    parser.add_argument("--chunk_size",
-                        help="Size of chunks in dataset. Default: 16", type=int, default=16)
-    parser.add_argument("--chunk_buffer",
-                        help="Size of chunk buffer in dataset. Default: 128", type=int, default=128)
     parser.add_argument("--num_epoch",
                         help="Number of epoches. Default: 500", type=int, default=500)
     parser.add_argument("--log_iter",
@@ -143,7 +102,7 @@ def run_training(cmd_line_args=None):
                         help="Number of steps to evaluate", type=int, default=1000)
     parser.add_argument("--num_batches",
                         help="Number of batches for evaluation", type=int, default=50)
-    parser.add_argument("--train-val-test",
+    parser.add_argument("--train_val",
                         help="Fraction of data to use for training/val. Must sum to 1.",
                         nargs=2, type=float, default=[0.95, .05])
     parser.add_argument("--log_dir",
@@ -151,16 +110,13 @@ def run_training(cmd_line_args=None):
     parser.add_argument("--save_dir",
                         help="Directory for tf models", type=str, default="model")
     parser.add_argument("--resume",
-                        help="load checkpoint", type=bool, default=False)
+                        help="Whether to start from a checkpoint", type=bool, default=False)
 
-    if cmd_line_args is None:
-        args = parser.parse_args()
-    else:
-        args = parser.parse_args(cmd_line_args)
+    args = parser.parse_args()
 
     dataset = h5.File(args.train_data, "r")
     n_total_data = len(dataset["states"])
-    n_train_data = int(args.train_val_test[0] * n_total_data)
+    n_train_data = int(args.train_val[0] * n_total_data)
     n_val_data = n_total_data - n_train_data
     total_batches = n_train_data // args.batch_size
 
@@ -168,11 +124,9 @@ def run_training(cmd_line_args=None):
         n_total_data, n_train_data, n_val_data))
     print("START TRAINING")
 
-    model = Network(game_config, args.num_gpu, pretrained=args.resume,
-                    config_file=supervised_config_path, mode="NCHW")
+    model = Network(game_config=game_config, num_gpu=args.num_gpu,
+                    train_config=supervised_config_path, load_pretrained=args.resume, data_format="NCHW")
     writer = tf.summary.FileWriter(args.log_dir, model.sess.graph)
-
-    lock = mp.Lock()
 
     train_data_generator = shuffled_hdf5_batch_generator(
         dataset["states"],
@@ -180,42 +134,26 @@ def run_training(cmd_line_args=None):
         dataset["results"],
         0, n_train_data,
         args.batch_size,
-        lock,
         flip=True,
-        chunk_size=args.chunk_size,
-        chunk_buffer=args.chunk_buffer,
-    )
-    val_data_generator = shuffled_hdf5_batch_generator(
-        dataset["states"],
-        dataset["actions"],
-        dataset["results"],
-        0, n_train_data,
-        args.batch_size,
-        lock,
     )
     eval_data_generator = shuffled_hdf5_batch_generator(
         dataset["states"],
         dataset["actions"],
         dataset["results"],
+        0, n_train_data,
+        args.batch_size,
+    )
+    val_data_generator = shuffled_hdf5_batch_generator(
+        dataset["states"],
+        dataset["actions"],
+        dataset["results"],
         n_train_data, n_total_data,
         args.batch_size,
-        lock,
     )
-
-    def fetch(it, q):
-        while True:
-            q.put(next(it))
-
-    q = mp.Queue(maxsize)
-    for _ in range(num_process):
-        p = mp.Process(target=fetch, args=(train_data_generator, q,))
-        p.daemon = True
-        p.start()
 
     for epoch in range(args.num_epoch):
         print("Epoch {}".format(epoch))
-        for _ in tqdm(range(total_batches), ascii=True):
-            batch = q.get()
+        for batch in tqdm(train_data_generator, total=total_batches, ascii=True):
             global_step = model.get_global_step() + 1
             loss = model.update(batch)
 
