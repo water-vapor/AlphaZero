@@ -10,6 +10,18 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
 
 class Network(object):
 
+    """
+    This module defines the network structure and its operations.
+
+    Args:
+        game_config: the rules and size of the game
+        train_config: defines the size of the network and configurations in model training.
+        num_gpu: the number of GPUs used for computation.
+        load_pretrained: whether to load the pre-trained model
+        data_format: input format, either "NCHW" or "NHWC". "NCHW" achieves higher performance on GPU, but it's not compatible with CPU.
+        cluster, job: for distributed training.
+    """
+
     def __init__(self, game_config, num_gpu=1, train_config=None, load_pretrained=False, data_format="NHWC",
                  cluster=tf.train.ClusterSpec({'main': ['localhost:3333']}), job='main'):
         with open(train_config, "r") as fh:
@@ -73,16 +85,16 @@ class Network(object):
                     self.sess, tf.train.latest_checkpoint(self._train_config['save_dir']))
 
     def update(self, data):
-        '''
+        """
         Update the model parameters.
 
-        Input: (state, action, result)
-               state: numpy array of shape [None, 17, 19, 19]
-               action: numpy array of shape [None, 362]
-               result: numpy array of shape [None]
-        Return: Average loss of the batch
+        Args:
+            data: tuple `(state, action, result, )`. `state` is a numpy array of shape `[None, filters, board_height, board_width]`.
+                `action` is a numpy array of shape `[None, flat_move_output]`. `result` is a numpy array of shape `[None]`.
 
-        '''
+        Returns:
+            Average loss of the minibatch.
+        """
 
         feed_dict = {}
         for idx, (model, batch) in enumerate(zip(self.models, batch_split(self._num_gpu, *data))):
@@ -95,15 +107,16 @@ class Network(object):
         return loss
 
     def response(self, data):
-        '''
+        """
         Predict the action and result given current state.
 
-        Input: (state, )
-               state: numpy array of shape [None, 17, 19, 19]
-        Return: (R_p, R_v)
-                R_p: probability distribution of action, numpy array of shape [None, 362]
-                R_v: expected value of current state, numpy array of shape [None]
-        '''
+        Args:
+            data: `(state, )`. `state` is a numpy array of shape `[None, filters, board_height, board_width]`.
+
+        Returns:
+            A tuple `(R_p, R_v)`. `R_p` is the probability distribution of action, a numpy array of shape `[None, 362]`.
+            `R_v` is the expected value of current state, a numpy array of shape `[None]`.
+        """
         feed_dict = {}
         for idx, (model, batch) in enumerate(zip(self.models, batch_split(self._num_gpu, *data))):
             feed_dict[model.x] = batch[0]
@@ -112,18 +125,17 @@ class Network(object):
         return R_p, R_v
 
     def evaluate(self, data):
-        '''
+        """
         Calculate loss and result based on supervised data.
 
-        Input: (state, action, result)
-               state: numpy array of shape [None, 17, 19, 19]
-               action: numpy array of shape [None, 362]
-               result: numpy array of shape [None]
-        Return: (loss, acc, mse)
-                loss: average loss of the batch
-                acc: prediction accuracy
-                mse: mse of game outcome, scala
-        '''
+        Args:
+            data: tuple `(state, action, result, )`. `state` is a numpy array of shape `[None, filters, board_height, board_width]`.
+                `action` is a numpy array of shape `[None, flat_move_output]`. `result` is a numpy array of shape `[None]`.
+
+        Returns:
+            A tuple `(loss, acc, mse)`. `loss` is the average loss of the minibatch. `acc` is the position prediction accuracy.
+            `mse` is the mean squared error of game outcome.
+        """
         feed_dict = {}
         state, action, result = data
         for idx, (model, batch) in enumerate(zip(self.models, batch_split(self._num_gpu, *data))):
@@ -139,11 +151,26 @@ class Network(object):
         return loss, acc, mse
 
     def get_global_step(self):
+        """
+        Get global step.
+        """
         return self.sess.run(self.global_step)
 
     def save(self, filename):
+        """
+        Save the model.
+
+        Args:
+            filename: prefix to the saved file. The final name is `filename + global_step`
+        """
         self.saver.save(self.sess, filename,
                         global_step=self.get_global_step())
 
     def load(self, filename):
+        """
+        Load the model.
+
+        Args:
+            filename: the name of saved file.
+        """
         self.saver.restore(self.sess, filename)

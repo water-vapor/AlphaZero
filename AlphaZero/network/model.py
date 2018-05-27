@@ -3,6 +3,15 @@ from AlphaZero.network.util import batch_norm, linear
 
 
 class Model(object):
+    """
+    Neural network for AlphaGoZero. As described in "Mastering the game of Go without human knowledge".
+
+    args:
+        game_config: the rules and size of the game
+        train_config: defines the size of the network and configurations in model training.
+        data_format: input format, either "NCHW" or "NHWC".
+    """
+
     def __init__(self, game_config, train_config, data_format="NHWC"):
         self._train_config = train_config
         self._data_format = data_format
