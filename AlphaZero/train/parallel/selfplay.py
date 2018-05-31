@@ -94,11 +94,11 @@ class Selfplay:
         """
         printlog('start')
 
-        thrd.Thread(target=self.model_update_handler, name='selfplay_model_update_hndl', daemon=True).start()
         if self.ext_config.get('remote'):
             thrd.Thread(target=self.remote_update_handler, name='selfplay_remote_update_hndl', daemon=True).start()
         else:
             thrd.Thread(target=self.rcv_remote_data_handler, name="selfplay_rcv_remote_hndl", daemon=True).start()
+            thrd.Thread(target=self.model_update_handler, name='selfplay_model_update_hndl', daemon=True).start()
 
         cnt = 0
         while True:

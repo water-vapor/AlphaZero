@@ -6,12 +6,17 @@ import pickle
 import time
 
 
+print_lock = mp.Lock()
 def printlog(*msg):
+    print_lock.acquire()
     print('[' + mp.current_process().name + ']', *msg)
+    print_lock.release()
 
 
 def printlog_thrd(*msg):
-    print('[' + thrd.current_thread().name + ']', *msg)
+    print_lock.acquire()
+    print('[' + mp.current_process().name + '/' + thrd.current_thread().name + ']', *msg)
+    print_lock.release()
 
 
 class RWLock:
