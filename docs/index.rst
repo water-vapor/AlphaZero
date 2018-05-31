@@ -8,8 +8,8 @@ AlphaZero Documentation
 
 Introduction
 -------------
-AlphaZero is a replication of [Mastering the game of Go without human knowledge](https://www.nature.com/nature/journal/v550/n7676/pdf/nature24270.pdf)
-and [Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm](https://arxiv.org/abs/1712.01815).
+AlphaZero is a replication of `Mastering the game of Go without human knowledge <https://www.nature.com/nature/journal/v550/n7676/pdf/nature24270.pdf>`_
+and `Mastering Chess and Shogi by Self-Play with a General Reinforcement Learning Algorithm <https://arxiv.org/abs/1712.01815)>`_.
 
 
 Contents
