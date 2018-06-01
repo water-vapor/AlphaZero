@@ -1,6 +1,7 @@
 max_playout: 400
 pretrained: True
 port: 3334
+save_dir: go_model/4.17_2
 
 num_blocks: 19                  # number of residual blocks in ResNet
 batch_decay: 0.9                # decay factor in batch normalization
@@ -10,5 +11,3 @@ learning_rate:                  # learning rate scheme
 momentum: 0.9                   # momentum of MomentumOptimizer
 l2: 1e-4                        # weight decay factor
 MSE_scaling: 0.01               # MSE rescaling factor
-
-save_dir: go_model/4.17_2
