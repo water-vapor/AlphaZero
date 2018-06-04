@@ -36,7 +36,13 @@ class GameState(object):
         self.turns = 0
 
     def _on_board(self, position):
-        """simply return True iff position is within the bounds of [0, self.size)
+        """
+
+        Args:
+            position: a tuple of (x, y)
+
+        Returns:
+            bool: returns True iff position is within the bounds of [0, self.size)
         """
         (x, y) = position
         return x >= 0 and y >= 0 and x < self.size and y < self.size
@@ -48,7 +54,8 @@ class GameState(object):
             direction: (a, b) where a, b is -1, 0 or 1, total 8 possible directions (0, 0) is not valid
             do_move: will flip opponent's stones if valid
 
-        Returns: boolean
+        Returns:
+            boolean
 
         """
         x, y = action
@@ -76,7 +83,10 @@ class GameState(object):
             return False
 
     def copy(self):
-        """get a copy of this Game state
+        """Gets a copy of this Game state
+
+        Returns:
+            AlphaZero.env.reversi.GameState: a copy of this Game state
         """
         other = GameState(self.size)
         other.board = self.board.copy()
@@ -89,9 +99,13 @@ class GameState(object):
         return other
 
     def is_legal(self, action):
-        """determine if the given action (x,y) is a legal move
-            Note that PASS should be a forced move in Reversi (only when there is no legal move)
-            When a PASS is received, the function will check globally with get_legal_moves
+        """
+        Determines if the given action (x,y) is a legal move
+        Args:
+            action: a tuple of (x, y)
+
+        Returns:
+            bool: if the move is legal.
         """
         # PASS is only legal when there is no legal move
         if action is PASS_MOVE:
@@ -114,7 +128,8 @@ class GameState(object):
         """ This function is infrequently used, therefore not optimized.
             Checks all non-pass moves
 
-        Returns: a list of legal moves
+        Returns:
+            list: a list of legal moves
 
         """
         legal_moves = [(i, j) for i in range(self.size) for j in range(self.size) if self.is_legal((i, j))]
@@ -123,7 +138,8 @@ class GameState(object):
     def get_winner(self):
         """ Counts the stones on the board, assumes the game is ended
 
-        Returns: The winner, None if the game is not ended yet
+        Returns:
+            int: The winner, None if the game is not ended yet
 
         """
         black_count = (self.board == BLACK).sum()
@@ -140,6 +156,13 @@ class GameState(object):
         """Play stone at action=(x,y). If color is not specified, current_player is used
         If it is a legal move, current_player switches to the opposite color
         If not, an IllegalMove exception is raised
+
+        Args:
+            action: a tuple of (x, y)
+            color: the color of the move
+
+        Returns:
+            bool: if it is the end of game.
         """
         color = color or self.current_player
         reset_player = self.current_player
@@ -182,11 +205,16 @@ class GameState(object):
         return self.is_end_of_game
 
     def transform(self, transform_id):
-        """ Transform the current board and the history boards according to D(4).
+        """Transform the current board and the history boards according to D(4).
             Caution: self.history (action history) is not modified, thus this function
             should ONLY be used for state evaluation.
-            Arguments:
-                transform_id: integer in range [0, 7]
+
+        Args:
+            transform_id: integer in range [0, 7]
+
+        Returns:
+            None
+
         """
         def _transform(b):
             # Performs reflection

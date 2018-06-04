@@ -74,29 +74,39 @@ class GameState(object):
         self.turns = 0
 
     def get_group(self, position):
-        """Get the group of connected same-color stones to the given position
-        Keyword arguments:
-        position -- a tuple of (x, y)
-        x being the column index of the starting position of the search
-        y being the row index of the starting position of the search
-        Return:
-        a set of tuples consist of (x, y)s which are the same-color cluster
-        which contains the input single position. len(group) is size of the cluster, can be large.
+        """
+        Get the group of connected same-color stones to the given position.
+
+        Args:
+            position: a tuple of (x, y), x being the column index of the starting position of the search,
+            y being the row index of the starting position of the search
+
+        Returns:
+            set: a set of tuples consist of (x, y)s which are the same-color cluster,
+            which contains the input single position. len(group) is size of the cluster, can be large.
         """
         (x, y) = position
         # given that this is already cached, it is a fast lookup
         return self.group_sets[x][y]
 
     def get_groups_around(self, position):
-        """returns a list of the unique groups adjacent to position
-        'unique' means that, for example in this position:
-            . . . . .
-            . B W . .
-            . W W . .
-            . . . . .
-            . . . . .
-        only the one white group would be returned on get_groups_around((1,1))
         """
+        returns a list of the unique groups adjacent to position
+        'unique' means that, for example in this position:
+        . . . . .
+        . B W . .
+        . W W . .
+        . . . . .
+        . . . . .
+        only the one white group would be returned on get_groups_around((1,1))
+
+        Args:
+            position: a tuple of (x, y)
+
+        Returns:
+            list: a list of the unique groups adjacent to position.
+        """
+
         groups = []
         for (nx, ny) in self._neighbors(position):
             group = self.group_sets[nx][ny]
@@ -105,8 +115,15 @@ class GameState(object):
         return groups
 
     def _on_board(self, position):
-        """simply return True iff position is within the bounds of [0, self.size)
         """
+
+        Args:
+            position: a tuple of (x, y)
+
+        Returns:
+            bool: returns True iff position is within the bounds of [0, self.size)
+        """
+
         (x, y) = position
         return x >= 0 and y >= 0 and x < self.size and y < self.size
 
@@ -120,21 +137,42 @@ class GameState(object):
                     GameState.__NEIGHBORS_CACHE[self.size][(x, y)] = neighbors
 
     def _neighbors(self, position):
-        """A private helper function that simply returns a list of positions neighboring
-        the given (x,y) position. Basically it handles edges and corners.
         """
+        A private helper function that simply returns a list of positions neighboring
+        the given (x,y) position. Basically it handles edges and corners.
+
+        Args:
+            position: a tuple of (x, y)
+
+        Returns:
+            list: a list of tuples.
+        """
+
         return GameState.__NEIGHBORS_CACHE[self.size][position]
 
     def _diagonals(self, position):
-        """Like _neighbors but for diagonal positions
         """
+        Like _neighbors but for diagonal positions
+        Args:
+            position: a tuple of (x, y)
+
+        Returns:
+            list: a list of tuples.
+        """
+
         (x, y) = position
         return filter(self._on_board, [(x - 1, y - 1), (x + 1, y + 1),
                                        (x + 1, y - 1), (x - 1, y + 1)])
 
     def _update_neighbors(self, position):
-        """A private helper function to update self.group_sets and self.liberty_sets
+        """
+        A private helper function to update self.group_sets and self.liberty_sets
         given that a stone was just played at `position`
+        Args:
+            position: a tuple of (x, y)
+
+        Returns:
+            None
         """
         (x, y) = position
 
@@ -194,7 +232,10 @@ class GameState(object):
                         self.liberty_counts[gx][gy] = len(self.liberty_sets[nx][ny])
 
     def copy(self):
-        """get a copy of this Game state
+        """Gets a copy of this Game state
+
+        Returns:
+            AlphaZero.env.go.GameState: a copy of this Game state
         """
         other = GameState(self.size, self.komi)
         other.board = self.board.copy()
@@ -229,7 +270,13 @@ class GameState(object):
         return other
 
     def is_suicide(self, action):
-        """return true if having current_player play at <action> would be suicide
+        """
+
+        Args:
+            action: a tuple of (x, y)
+
+        Returns:
+            bool: return true if having current_player play at <action> would be suicide
         """
         (x, y) = action
         num_liberties_here = len(self.liberty_sets[x][y])
@@ -255,7 +302,11 @@ class GameState(object):
         """Find all actions that the current_player has done in the past, taking into
         account the fact that history starts with BLACK when there are no
         handicaps or with WHITE when there are.
+        Args:
+            action: a tuple of (x, y)
 
+        Returns:
+            bool: if the move is positional superko.
         """
         if len(self.handicaps) == 0 and self.current_player == BLACK:
             player_history = self.history[0::2]
@@ -277,8 +328,13 @@ class GameState(object):
             return False
 
     def is_legal(self, action):
-        """determine if the given action (x,y tuple) is a legal move
-        note: we only check ko, not superko at this point (TODO?)
+        """
+        Determines if the given action (x,y) is a legal move
+        Args:
+            action: a tuple of (x, y)
+
+        Returns:
+            bool: if the move is legal.
         """
         # passing is always legal
         if action is PASS_MOVE:
@@ -297,7 +353,14 @@ class GameState(object):
         return True
 
     def is_eyeish(self, position, owner):
-        """returns whether the position is empty and is surrounded by all stones of 'owner'
+        """
+
+        Args:
+            position: a tuple of (x, y)
+            owner: the color
+
+        Returns:
+            bool: whether the position is empty and is surrounded by all stones of 'owner'
         """
         (x, y) = position
         if self.board[x, y] != EMPTY:
@@ -339,6 +402,14 @@ class GameState(object):
         return True
 
     def get_legal_moves(self, include_eyes=True):
+        """
+
+        Args:
+            include_eyes: whether to include eyes in legal moves
+
+        Returns:
+            list: a list of tuples.
+        """
         if self.__legal_move_cache is not None:
             if include_eyes:
                 return self.__legal_move_cache + self.__legal_eyes_cache
@@ -358,7 +429,11 @@ class GameState(object):
     def get_winner(self):
         """Calculate score of board state and return player ID (1, -1, or 0 for tie)
         corresponding to winner. Uses 'Area scoring'.
+
+        Returns:
+            int: the color of the winner.
         """
+
         # Count number of positions filled by each player, plus 1 for each eye-ish space owned
         score_white = np.sum(self.board == WHITE)
         score_black = np.sum(self.board == BLACK)
@@ -382,6 +457,14 @@ class GameState(object):
         return winner
 
     def place_handicaps(self, actions):
+        """
+        Place handicap stones of black.
+        Args:
+            actions: a list of tuples of (x, y)
+
+        Returns:
+            None
+        """
         if len(self.history) > 0:
             raise IllegalMove("Cannot place handicap on a started game")
         self.handicaps.extend(actions)
@@ -391,11 +474,23 @@ class GameState(object):
         self.board_history = [np.zeros((self.size, self.size), dtype=int) for _ in range(self.history_length - 1)]
 
     def place_handicap_stone(self, action, color=BLACK):
+        """
+        Place a handicap stone of the specified color.
+        Args:
+            action: a tuple of (x, y)
+            color: the color of the move
+
+        Returns:
+            None
+        """
         self.handicaps.append(action)
         self.do_move(action, color)
 
     def get_current_player(self):
-        """Returns the color of the player who will make the next move.
+        """
+
+        Returns:
+            int: the color of the player who will make the next move.
         """
         return self.current_player
 
@@ -403,6 +498,13 @@ class GameState(object):
         """Play stone at action=(x,y). If color is not specified, current_player is used
         If it is a legal move, current_player switches to the opposite color
         If not, an IllegalMove exception is raised
+
+        Args:
+            action: a tuple of (x, y)
+            color: the color of the move
+
+        Returns:
+            bool: if it is the end of game.
         """
         color = color or self.current_player
         reset_player = self.current_player
@@ -467,11 +569,16 @@ class GameState(object):
         return self.is_end_of_game
 
     def transform(self, transform_id):
-        """ Transform the current board and the history boards according to D(4).
+        """Transform the current board and the history boards according to D(4).
             Caution: self.history (action history) is not modified, thus this function
             should ONLY be used for state evaluation.
-            Arguments:
-                transform_id: integer in range [0, 7]
+
+        Args:
+            transform_id: integer in range [0, 7]
+
+        Returns:
+            None
+
         """
         def _transform(b):
             # Performs reflection

@@ -1,6 +1,9 @@
 import AlphaZero.search.mcts as MCTS
 
 class Player:
+    """
+    Represents a player playing according to Monto Carlo Tree Search.
+    """
 
     def __init__(self, eval_fun, game_config, ext_config):
         """

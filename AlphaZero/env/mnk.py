@@ -36,13 +36,22 @@ class GameState(object):
         self.turns = 0
 
     def _on_board(self, position):
-        """simply return True iff position is within the bounds of [0, self.size)
+        """
+
+        Args:
+            position: a tuple of (x, y)
+
+        Returns:
+            bool: returns True iff position is within the bounds of [0, self.size)
         """
         (x, y) = position
         return x >= 0 and y >= 0 and x < self.height and y < self.width
 
     def copy(self):
-        """get a copy of this Game state
+        """Gets a copy of this Game state
+
+        Returns:
+            AlphaZero.env.mnk.GameState: a copy of this Game state
         """
         other = GameState()
         other.board = self.board.copy()
@@ -55,7 +64,13 @@ class GameState(object):
         return other
 
     def is_legal(self, action):
-        """determine if the given action (x,y) is a legal move
+        """
+        Determines if the given action (x,y) is a legal move
+        Args:
+            action: a tuple of (x, y)
+
+        Returns:
+            bool: if the move is legal.
         """
         (x, y) = action
         if not self._on_board(action):
@@ -65,10 +80,10 @@ class GameState(object):
         return True
 
     def get_legal_moves(self):
-        """ This function is infrequently used, therefore not optimized
+        """
 
-        Returns: a list of legal moves
-
+        Returns:
+            list: a list of legal moves.
         """
         legal_moves = [(i, j) for i in range(self.height) for j in range(self.width) if self.is_legal((i, j))]
         return legal_moves
@@ -85,6 +100,13 @@ class GameState(object):
         """Play stone at action=(x,y). If color is not specified, current_player is used
         If it is a legal move, current_player switches to the opposite color
         If not, an IllegalMove exception is raised
+
+        Args:
+            action: a tuple of (x, y)
+            color: the color of the move
+
+        Returns:
+            bool: if it is the end of game.
         """
         color = color or self.current_player
         reset_player = self.current_player
@@ -163,11 +185,16 @@ class GameState(object):
         return self.is_end_of_game
 
     def transform(self, transform_id):
-        """ Transform the current board and the history boards according to D(4).
+        """Transform the current board and the history boards according to D(4).
             Caution: self.history (action history) is not modified, thus this function
             should ONLY be used for state evaluation.
-            Arguments:
-                transform_id: integer in range [0, 7]
+
+        Args:
+            transform_id: integer in range [0, 7]
+
+        Returns:
+            None
+
         """
         assert self.height == self.width
 

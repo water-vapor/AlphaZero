@@ -30,6 +30,9 @@ class SearchProbsMismatchError(Exception):
 
 
 class GameConverter:
+    """
+    Convert SGF files to network input feature files.
+    """
     def __init__(self, features):
         self.feature_processor = StateTensorConverter(config, features)
         self.n_features = self.feature_processor.output_dim
@@ -42,6 +45,13 @@ class GameConverter:
         Each output is an action as an (x,y) pair (passes are skipped)
 
         If this game's size does not match bd_size, a SizeMismatchError is raised
+
+        Args:
+            file_name: file name
+            bd_size: board size
+
+        Returns:
+            tuple: neural network input, move and result
         """
 
         with open(file_name, 'r') as file_object:
@@ -61,30 +71,39 @@ class GameConverter:
             yield (nn_input, move, result)
 
     def sgfs_to_hdf5(self, sgf_files, hdf5_file, bd_size=19, ignore_errors=True, verbose=False):
-        """Convert all files in the iterable sgf_files into an hdf5 group to be stored in hdf5_file
-
-        Arguments:
-        - sgf_files : an iterable of relative or absolute paths to SGF files
-        - hdf5_file : the name of the HDF5 where features will be saved
-        - bd_size : side length of board of games that are loaded
-
-        - ignore_errors : if True, issues a Warning when there is an unknown
-            exception rather than halting. Note that sgf.ParseException and
-            go.IllegalMove exceptions are always skipped
+        """Convert all files in the iterable sgf_files into an hdf5 group to be stored in hdf5_file.
 
         The resulting file has the following properties:
+
             states  : dataset with shape (n_data, n_features, board width, board height)
-            actions : dataset with shape (n_data, 2) (actions are stored as x,y tuples of
-                      where the move was played)
+
+            actions : dataset with shape (n_data, 2) (actions are stored as x,y tuples of where the move was played)
+
             results : dataset with shape (n_data, 1), +1 if current player wins, -1 otherwise
+
             file_offsets : group mapping from filenames to tuples of (index, length)
 
         For example, to find what positions in the dataset come from 'test.sgf':
+
             index, length = file_offsets['test.sgf']
+
             test_states = states[index:index+length]
+
             test_actions = actions[index:index+length]
 
+        Args:
+            sgf_files: an iterable of relative or absolute paths to SGF files
+            hdf5_file: the name of the HDF5 where features will be saved
+            bd_size: side length of board of games that are loaded
+            ignore_errors: if True, issues a Warning when there is an unknown
+            exception rather than halting. Note that sgf.ParseException and
+            go.IllegalMove exceptions are always skipped
+            verbose: display setting
+
+        Returns:
+            None
         """
+
 
         # make a hidden temporary file in case of a crash.
         # on success, this is renamed to hdf5_file
@@ -185,29 +204,37 @@ class GameConverter:
         os.rename(tmp_file, hdf5_file)
 
     def selfplay_to_hdf5(self, sgf_pkl_files, hdf5_file, bd_size=19, ignore_errors=True, verbose=False):
-        """Convert all files in the iterable sgf_files into an hdf5 group to be stored in hdf5_file
-
-        Arguments:
-        - sgf_pkl_files : an iterable of relative or absolute paths to SGF and PKL files
-        - hdf5_file : the name of the HDF5 where features will be saved
-        - bd_size : side length of board of games that are loaded
-
-        - ignore_errors : if True, issues a Warning when there is an unknown
-            exception rather than halting. Note that sgf.ParseException and
-            go.IllegalMove exceptions are always skipped
+        """Convert all files in the iterable sgf_files into an hdf5 group to be stored in hdf5_file.
 
         The resulting file has the following properties:
+
             states  : dataset with shape (n_data, n_features, board width, board height)
-            actions : dataset with shape (n_data, 2) (actions are stored as x,y tuples of
-                      where the move was played)
+
+            actions : dataset with shape (n_data, 2) (actions are stored as x,y tuples of where the move was played)
+
             results : dataset with shape (n_data, 1), +1 if current player wins, -1 otherwise
+
             file_offsets : group mapping from filenames to tuples of (index, length)
 
         For example, to find what positions in the dataset come from 'test.sgf':
+
             index, length = file_offsets['test.sgf']
+
             test_states = states[index:index+length]
+
             test_actions = actions[index:index+length]
 
+        Args:
+            sgf_pkl_files: an iterable of relative or absolute paths to SGF and PKL files
+            hdf5_file: the name of the HDF5 where features will be saved
+            bd_size: side length of board of games that are loaded
+            ignore_errors: if True, issues a Warning when there is an unknown
+            exception rather than halting. Note that sgf.ParseException and
+            go.IllegalMove exceptions are always skipped
+            verbose: display setting
+
+        Returns:
+            None
         """
 
         # make a hidden temporary file in case of a crash.
@@ -332,7 +359,13 @@ class GameConverter:
 
 
 def run_game_converter(cmd_line_args=None):
-    """Run conversions. command-line args may be passed in as a list
+    """Run conversions.
+
+    Args:
+        cmd_line_args: command-line args may be passed in as a list
+
+    Returns:
+        None
     """
     import argparse
     import sys

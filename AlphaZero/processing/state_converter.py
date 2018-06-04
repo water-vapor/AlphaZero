@@ -47,6 +47,12 @@ class StateTensorConverter(object):
 
     def get_board_history(self, state):
         """A feature encoding WHITE and BLACK on separate planes of recent history_length states
+
+        Args:
+            state: the game state
+
+        Returns:
+            numpy.ndarray
         """
 
         planes = np.zeros((2 * self._config['history_step'], state.height, state.width))
@@ -61,6 +67,11 @@ class StateTensorConverter(object):
 
     def state_to_tensor(self, state):
         """Convert a GameState to a Theano-compatible tensor
+        Args:
+            state: the game state
+
+        Returns:
+            numpy.ndarray
         """
         feat_tensors = [proc(state) for proc in self.processors]
 
@@ -89,7 +100,7 @@ class TensorActionConverter(object):
             tensor: a 1D prob tensor with length flat_move_output
 
         Returns:
-            a list of (action, prob)
+            list: a list of (action, prob)
         """
         res = [((i // self._wid, i % self._wid), tensor[i]) for i in range(self._hei * self._wid)]
         if self._allow_pass_move:
@@ -111,9 +122,9 @@ class ReverseTransformer(object):
 
     def lr_reflection(self, action_prob):
         """ Flips the coordinate of action probability vector like np.fliplr
-            Modification is made in place
-            Note that PASS_MOVE should be placed at the end of this vector
- +          Condition check is disabled for efficiency
+        Modification is made in place.
+        Note that PASS_MOVE should be placed at the end of this vector.
+        Condition check is disabled for efficiency.
 
         Args:
             action_prob: action probabilities

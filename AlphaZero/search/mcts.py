@@ -28,12 +28,17 @@ class MCTreeNode(object):
         self._prior_prob = prior_prob
 
     def expand(self, policy, value):
-        """ Expand a leaf node according to the network evaluation.
-            NO visit count is updated in this function, make sure it's updated externally
-        Arguments:
+        """Expand a leaf node according to the network evaluation.
+        NO visit count is updated in this function, make sure it's updated externally.
+
+        Args:
             policy: a list of (action, prob) tuples returned by the network
             value: the value of this node returned by the network
+
+        Returns:
+            None
         """
+
         # Check if the node is leaf
         if not self.is_leaf():
             return
@@ -48,15 +53,23 @@ class MCTreeNode(object):
 
     def select(self):
         """ Select the best child of this node.
+
         Returns:
-            A tuple of (action, next_node) with highest Q(s,a)+U(s,a)
+            tuple: A tuple of (action, next_node) with highest Q(s,a)+U(s,a)
         """
         # Argmax_a(Q(s,a)+U(s,a))
         return max(self._children.items(), key=lambda act_node: act_node[1].get_selection_value())
 
     def update(self, v):
         """ Update the three values
+
+        Args:
+            v: value
+
+        Returns:
+            None
         """
+
         # Each node's N(s,a) is updated when simulation is executed on this node,
         # no need to update here. See MCTSearch.
         # N(s,a) = N(s,a) + 1
@@ -65,8 +78,12 @@ class MCTreeNode(object):
         self._total_action_val += v
 
     def get_selection_value(self):
-        """ Implements PUCT Algorithm's formula for current node.
+        """Implements PUCT Algorithm's formula for current node.
+
+        Returns:
+            None
         """
+
         # U(s,a)=c_punt * P(s,a) * sqrt(Parent's N(s,a)) / (1 + N(s,a))
         usa = c_punt * self._prior_prob * math.sqrt(self._parent.visit_count) / (1.0 + self._visit_cnt)
         # Q(s,a) + U(s,a)
@@ -74,7 +91,11 @@ class MCTreeNode(object):
 
     def get_mean_action_value(self):
         """Calculates Q(s,a)
+
+        Returns:
+            real: mean action value
         """
+
         # TODO: Should this value be inverted with color?
         # If yes, the signature should be changed to (self, color)
         if self._visit_cnt == 0:
@@ -82,14 +103,28 @@ class MCTreeNode(object):
         return self._total_action_val / self._visit_cnt
 
     def visit(self):
+        """Increment the visit count.
+
+        Returns:
+            None
+        """
         self._visit_cnt += 1
 
     def is_leaf(self):
-        """Check if leaf node (i.e. no nodes below this have been expanded).
+        """Checks if it is a leaf node (i.e. no nodes below this have been expanded).
+
+        Returns:
+            bool: if the current node is leaf.
         """
+
         return self._children == {}
 
     def is_root(self):
+        """Checks if it is a root node.
+
+        Returns:
+            bool: if the current node is root.
+        """
         return self._parent is None
 
     @property
@@ -110,7 +145,7 @@ class MCTreeNode(object):
 
 
 class MCTSearch(object):
-    """ Create a MC search tree.
+    """ Create a Monto Carlo search tree.
     """
 
     def __init__(self, evaluator, game_config, max_playout=1600):
@@ -137,10 +172,15 @@ class MCTSearch(object):
 
     def _playout(self, state, node):
         """
-        Arguments:
+        Recursively executes playout from the current node.
+        Args:
             state: current board state
             node: the node to start simulation
+
+        Returns:
+            real: the action value of the current node
         """
+
         # The current node is visited
         node.visit()
 
@@ -194,7 +234,7 @@ class MCTSearch(object):
     def _get_search_probs(self):
         """ Calculate the search probabilities exponentially to the visit counts.
             Returns:
-                normalized_probs: a list of (action, probs)
+                list: a list of (action, probs)
         """
         # A list of (action, selection_weight), weight is not normalized
         moves = [(action, node.visit_count) for action, node in self._root.children.items()]
@@ -203,15 +243,18 @@ class MCTSearch(object):
         return normalized_probs
 
     def _calc_move(self, state, dirichlet=False):
-        """ Performs MCTS
-            Remarks:
-                "temperature" parameter of the two random dist is not implemented,
-                because the value is set to either 1 or 0 in the paper, which can
-                be controlled by toggling the option.
-            Arguments:
+        """ Performs MCTS.
+
+            "temperature" parameter of the two random dist is not implemented,
+            because the value is set to either 1 or 0 in the paper, which can
+            be controlled by toggling the option.
+
+            Args:
                 state: current state
                 dirichlet: enable Dirichlet noise described in "Self-play" section
 
+            Returns:
+                None
 
         """
         # The root of the tree is visited.
@@ -261,7 +304,7 @@ class MCTSearch(object):
             prop_exp: select the final decision proportional to its exponential visit
 
         Returns:
-            result: an action (x, y)
+            tuple: the calculated result (x, y)
 
         """
         self._calc_move(state, dirichlet)
@@ -283,8 +326,7 @@ class MCTSearch(object):
             dirichlet: enable Dirichlet noise described in "Self-play" section
 
         Returns:
-            result: an action (x, y)
-            probs: MCTS search probabilities, a list of (action, probs)
+            tuple: the result (x, y) and a list of (action, probs)
         """
         self._calc_move(state, dirichlet)
         probs = self._get_search_probs()
@@ -294,6 +336,8 @@ class MCTSearch(object):
     def update_with_move(self, last_move):
         """Step forward in the tree, keeping everything we already know about the subtree, assuming
         that calc_move() has been called already. Siblings of the new root will be garbage-collected.
+        Returns:
+            None
         """
         if last_move in self._root.children:
             self._root = self._root.children[last_move]

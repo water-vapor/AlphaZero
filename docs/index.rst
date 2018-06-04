@@ -21,7 +21,6 @@ Contents
    env.rst
    evaluator.rst
    game.rst
-   interface.rst
    network.rst
    player.rst
    processing.rst
