@@ -1,0 +1,6 @@
+numpy
+pyyaml
+tqdm
+h5py
+sgf
+
