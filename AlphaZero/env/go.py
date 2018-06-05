@@ -92,12 +92,14 @@ class GameState(object):
     def get_groups_around(self, position):
         """
         returns a list of the unique groups adjacent to position
-        'unique' means that, for example in this position:
-        . . . . .
-        . B W . .
-        . W W . .
-        . . . . .
-        . . . . .
+        'unique' means that, for example in this position::
+
+            . . . . .
+            . B W . .
+            . W W . .
+            . . . . .
+            . . . . .
+
         only the one white group would be returned on get_groups_around((1,1))
 
         Args:
